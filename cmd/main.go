@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/proxima-one/pocs/stream-db-endpoint/client"
 	"github.com/proxima-one/pocs/stream-db-endpoint/config"
@@ -12,15 +13,15 @@ func readBatch(reader *client.StreamReader) {
 	start := time.Now()
 	processed := 0
 	for {
-		transitions, _ := reader.FetchNextTransitions(1000)
+		ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
+		transitions, _ := reader.FetchNextTransitions(ctx, 1000)
 		if len(transitions) == 0 {
-			fmt.Println("total messages %d", processed)
+			fmt.Printf("total messages %d\n", processed)
 			fmt.Printf("Finish stream")
 			break
 		}
 		for _, transition := range transitions {
 			processed++
-
 			if processed%10000 == 0 {
 				fmt.Println(transition.Event.Timestamp)
 				elapsed := time.Since(start)
@@ -33,7 +34,7 @@ func readBatch(reader *client.StreamReader) {
 func readBatchedStream(reader *client.StreamReader) {
 	start := time.Now()
 	processed := 0
-	data, err := reader.GetBatchedStream(5000, 4000)
+	data, _, err := reader.GetBatchedStream(context.Background(), 5000, 4000)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -41,7 +42,7 @@ func readBatchedStream(reader *client.StreamReader) {
 		transition := <-data
 		processed++
 		if transition.IsEmpty() {
-			fmt.Println("total messages %d", processed)
+			fmt.Printf("total messages %d\n", processed)
 			fmt.Printf("Finish stream")
 			break
 		}
@@ -56,7 +57,7 @@ func readBatchedStream(reader *client.StreamReader) {
 func readStream(reader *client.StreamReader) {
 	start := time.Now()
 	processed := 0
-	data, err := reader.GetRawStreamFromState(model.Genesis(), 10000)
+	data, _, err := reader.GetRawStreamFromState(context.Background(), model.Genesis(), 10000)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -64,7 +65,7 @@ func readStream(reader *client.StreamReader) {
 		transition := <-data
 		processed++
 		if transition.IsEmpty() {
-			fmt.Println("Total messages ", processed)
+			fmt.Printf("Total messages %d\n", processed)
 			fmt.Printf("Finish stream")
 			break
 		}

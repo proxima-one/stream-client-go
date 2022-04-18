@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"github.com/proxima-one/pocs/stream-db-endpoint/config"
 	"github.com/proxima-one/pocs/stream-db-endpoint/model"
@@ -32,49 +33,62 @@ func (reader *StreamReader) Disconnect() {
 	reader.client.Disconnect()
 }
 
-func (reader *StreamReader) FetchNextTransitions(count int) ([]model.Transition, error) {
+func (reader *StreamReader) FetchNextTransitions(ctx context.Context, count int) ([]*model.Transition, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	reader.mutex.Lock()
-	transitions, err := reader.client.GetTransitionsAfter(model.StreamState{
+	transitions, err := reader.client.GetTransitionsAfter(ctx, model.StreamState{
 		StreamID: reader.config.StreamID,
 		State:    reader.lastState,
 	}, count)
 	if err != nil {
-		log.Println("Error fetching transitions:", err)
+		log.Println("Error fetching transitions: ", err)
 		return nil, err
 	}
 	if len(transitions) == 0 {
 		reader.mutex.Unlock()
-		return nil, errors.New("No transitions found")
+		return nil, errors.New("no transitions found")
 	}
+	//todo: transitions is not empty
 	reader.lastState = transitions[len(transitions)-1].NewState
 	reader.mutex.Unlock()
 	return transitions, err
 }
 
-func (reader *StreamReader) GetRawStreamFromState(state model.State, buffer int) (chan model.Transition, error) {
-	stream, err := reader.client.GetStream(model.StreamState{
+func (reader *StreamReader) GetRawStreamFromState(ctx context.Context, state model.State, buffer int) (<-chan *model.Transition, <-chan error, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	stream, errc, err := reader.client.GetStream(ctx, model.StreamState{
 		StreamID: reader.config.StreamID,
 		State:    state,
 	}, buffer)
-	return stream, err
+	return stream, errc, err
 }
 
-func (reader *StreamReader) GetBatchedStream(buffer int, countPerRequest int) (chan model.Transition, error) {
-	result := make(chan model.Transition, buffer)
+func (reader *StreamReader) GetBatchedStream(ctx context.Context, buffer int, countPerRequest int) (<-chan *model.Transition, <-chan error, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	result := make(chan *model.Transition, buffer)
+	errc := make(chan error, 1)
 	go func() {
+		defer close(result)
+		defer close(errc)
 		for {
-			messages, err := reader.FetchNextTransitions(countPerRequest)
+			messages, err := reader.FetchNextTransitions(ctx, countPerRequest)
 			if err != nil {
-				result <- model.Transition{}
+				log.Printf("Error while receiving stream, %v\n", err)
+				errc <- err
 				close(result)
-				log.Println("Error while receiving stream, %v", err)
+				close(errc)
 				break
-
 			}
 			for _, msg := range messages {
 				result <- msg
 			}
 		}
 	}()
-	return result, nil
+	return result, errc, nil
 }

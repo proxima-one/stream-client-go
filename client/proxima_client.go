@@ -47,16 +47,18 @@ func streamMessageToModel(msg *pb.StreamMessage) *model.Transition {
 	return &model.Transition{
 		NewState: model.NewState(msg.Id),
 		Event: model.Event{
-			Undo: msg.GetHeader().GetUndo(),
-			//Payload:   msg.GetPayload(),
-			Payload:   &msg.Payload, //copy payload or not?
+			Undo:      msg.GetHeader().GetUndo(),
+			Payload:   &msg.Payload,
 			Timestamp: msg.GetTimestamp().AsTime(),
 		},
 	}
 }
 
-func (client *ProximaClient) GetTransitionsAfter(streamState model.StreamState, count int) ([]model.Transition, error) {
-	res, err := client.grpc.GetNextMessages(context.Background(), &pb.GetNextMessagesRequest{
+func (client *ProximaClient) GetTransitionsAfter(ctx context.Context, streamState model.StreamState, count int) ([]*model.Transition, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	res, err := client.grpc.GetNextMessages(ctx, &pb.GetNextMessagesRequest{
 		StreamId:      streamState.StreamID,
 		LastMessageId: streamState.State.Id,
 		Count:         int32(count),
@@ -64,37 +66,44 @@ func (client *ProximaClient) GetTransitionsAfter(streamState model.StreamState, 
 	if err != nil {
 		return nil, err
 	}
-	transitions := make([]model.Transition, len(res.Messages))
+	transitions := make([]*model.Transition, len(res.Messages))
 	for i, msg := range res.Messages {
-		transitions[i] = *streamMessageToModel(msg)
+		transitions[i] = streamMessageToModel(msg)
 	}
 	return transitions, nil
 }
 
-func (client *ProximaClient) GetStream(streamState model.StreamState, bufferSize int) (chan model.Transition, error) {
-	streamClient, err := client.grpc.StreamMessages(context.Background(), &pb.StreamMessagesRequest{
+func (client *ProximaClient) GetStream(ctx context.Context, streamState model.StreamState, bufferSize int) (<-chan *model.Transition, <-chan error, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	streamClient, err := client.grpc.StreamMessages(ctx, &pb.StreamMessagesRequest{
 		StreamId:      streamState.StreamID,
 		LastMessageId: streamState.State.Id,
 	})
 	if err != nil {
 		log.Fatalf("Error while getting stream, %v", err)
-		return nil, err
+		return nil, nil, err
 	}
-	result := make(chan model.Transition, bufferSize)
+	result := make(chan *model.Transition, bufferSize)
+	errc := make(chan error, 1)
 	go func() {
+		defer close(result)
+		defer close(errc)
 		for {
 			messages, err := streamClient.Recv()
 			if err != nil {
 				log.Printf("Error while reading stream, %v\n", err)
-				result <- model.Transition{}
+				errc <- err
 				close(result)
+				close(errc)
 				break
 			}
 			for _, msg := range messages.Messages {
-				result <- *streamMessageToModel(msg)
+				result <- streamMessageToModel(msg)
 			}
 		}
 	}()
 
-	return result, nil
+	return result, errc, nil
 }
