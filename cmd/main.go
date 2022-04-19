@@ -16,7 +16,7 @@ func readBatch(reader *client.StreamReader) {
 		ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
 		transitions, _ := reader.FetchNextTransitions(ctx, 1000)
 		if len(transitions) == 0 {
-			fmt.Printf("total messages %d\n", processed)
+			fmt.Printf("\ntotal messages %d\n", processed)
 			fmt.Printf("Finish stream")
 			break
 		}
@@ -37,13 +37,14 @@ func readBatchedStream(reader *client.StreamReader) {
 	data, _, err := reader.GetBatchedStream(context.Background(), 5000, 4000)
 	if err != nil {
 		fmt.Println(err)
+		return
 	}
 	for {
-		transition := <-data
+		transition, ok := <-data
 		processed++
-		if transition.IsEmpty() {
+		if transition == nil || !ok {
 			fmt.Printf("total messages %d\n", processed)
-			fmt.Printf("Finish stream")
+			fmt.Printf("Finish stream, breaking processing, or you can wait for the next batch")
 			break
 		}
 		if processed%10000 == 0 {
@@ -57,18 +58,19 @@ func readBatchedStream(reader *client.StreamReader) {
 func readStream(reader *client.StreamReader) {
 	start := time.Now()
 	processed := 0
-	data, _, err := reader.GetRawStreamFromState(context.Background(), model.Genesis(), 10000)
+	ctx, _ := context.WithTimeout(context.Background(), time.Second*100)
+	data, _, err := reader.GetRawStream(ctx, 10000)
 	if err != nil {
 		fmt.Println(err)
 	}
 	for {
-		transition := <-data
-		processed++
-		if transition.IsEmpty() {
-			fmt.Printf("Total messages %d\n", processed)
+		transition, ok := <-data
+		if !ok {
+			fmt.Printf("total messages %d\n", processed)
 			fmt.Printf("Finish stream")
 			break
 		}
+		processed++
 		if processed%10000 == 0 {
 			fmt.Println(transition.Event.Timestamp)
 			elapsed := time.Since(start)

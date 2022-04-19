@@ -7,7 +7,7 @@ import (
 	"github.com/proxima-one/pocs/stream-db-endpoint/model"
 	"log"
 	"sync"
-	//"google.golang.org/grpc/credentials"
+	//"google.golang.org/grpc/credentials" todo: add ssl and auth
 )
 
 type StreamReader struct {
@@ -67,7 +67,31 @@ func (reader *StreamReader) GetRawStreamFromState(ctx context.Context, state mod
 	return stream, errc, err
 }
 
-func (reader *StreamReader) GetBatchedStream(ctx context.Context, buffer int, countPerRequest int) (<-chan *model.Transition, <-chan error, error) {
+func (reader *StreamReader) GetRawStream(ctx context.Context, buffer int) (<-chan *model.Transition, <-chan error, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	stream, errc, err := reader.GetRawStreamFromState(ctx, reader.lastState, buffer)
+	result := make(chan *model.Transition, buffer)
+	go func() {
+		defer close(result)
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case transition, ok := <-stream:
+				if !ok {
+					return
+				}
+				reader.lastState = transition.NewState
+				result <- transition
+			}
+		}
+	}()
+	return result, errc, err
+}
+
+func (reader *StreamReader) GetBatchedStream(ctx context.Context, buffer int, count int) (<-chan *model.Transition, <-chan error, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -77,16 +101,19 @@ func (reader *StreamReader) GetBatchedStream(ctx context.Context, buffer int, co
 		defer close(result)
 		defer close(errc)
 		for {
-			messages, err := reader.FetchNextTransitions(ctx, countPerRequest)
-			if err != nil {
-				log.Printf("Error while receiving stream, %v\n", err)
-				errc <- err
-				close(result)
-				close(errc)
-				break
-			}
-			for _, msg := range messages {
-				result <- msg
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				messages, err := reader.FetchNextTransitions(ctx, count)
+				if err != nil {
+					log.Printf("Error while receiving stream, %v\n", err)
+					errc <- err
+					return
+				}
+				for _, msg := range messages {
+					result <- msg
+				}
 			}
 		}
 	}()

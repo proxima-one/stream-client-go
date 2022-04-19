@@ -95,8 +95,6 @@ func (client *ProximaClient) GetStream(ctx context.Context, streamState model.St
 			if err != nil {
 				log.Printf("Error while reading stream, %v\n", err)
 				errc <- err
-				close(result)
-				close(errc)
 				break
 			}
 			for _, msg := range messages.Messages {
