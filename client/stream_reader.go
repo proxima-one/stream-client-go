@@ -3,8 +3,8 @@ package client
 import (
 	"context"
 	"errors"
-	"github.com/proxima-one/pocs/stream-db-endpoint/config"
-	"github.com/proxima-one/pocs/stream-db-endpoint/model"
+	"github.com/proxima-one/streamdb-client-go/config"
+	"github.com/proxima-one/streamdb-client-go/model"
 	"log"
 	"sync"
 	//"google.golang.org/grpc/credentials" todo: add ssl and auth

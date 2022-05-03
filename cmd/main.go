@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/proxima-one/pocs/stream-db-endpoint/client"
-	"github.com/proxima-one/pocs/stream-db-endpoint/config"
-	"github.com/proxima-one/pocs/stream-db-endpoint/model"
+	"github.com/proxima-one/streamdb-client-go/client"
+	"github.com/proxima-one/streamdb-client-go/config"
+	"github.com/proxima-one/streamdb-client-go/model"
 	"time"
 )
 

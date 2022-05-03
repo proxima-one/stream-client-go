@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 	"crypto/tls"
-	"github.com/proxima-one/pocs/stream-db-endpoint/config"
-	pb "github.com/proxima-one/pocs/stream-db-endpoint/gen/proto"
-	"github.com/proxima-one/pocs/stream-db-endpoint/model"
+	"github.com/proxima-one/streamdb-client-go/config"
+	pb "github.com/proxima-one/streamdb-client-go/gen/proto"
+	"github.com/proxima-one/streamdb-client-go/model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"log"
