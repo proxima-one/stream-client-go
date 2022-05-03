@@ -24,13 +24,17 @@ func NewStreamReader(config config.Config, lastState model.State) *StreamReader 
 	}
 }
 
-func (reader *StreamReader) Connect() {
+func (reader *StreamReader) Connect() error {
 	reader.client = NewProximaClient(reader.config)
-	reader.client.Connect()
+	return reader.client.Connect()
 }
 
-func (reader *StreamReader) Disconnect() {
-	reader.client.Disconnect()
+func (reader *StreamReader) Disconnect() error {
+	return reader.client.Disconnect()
+}
+
+func (reader *StreamReader) GetStreamID() string {
+	return reader.config.StreamID
 }
 
 func (reader *StreamReader) FetchNextTransitions(ctx context.Context, count int) ([]*model.Transition, error) {

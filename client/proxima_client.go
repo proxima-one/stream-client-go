@@ -39,8 +39,8 @@ func (client *ProximaClient) Connect() error {
 	return nil
 }
 
-func (client *ProximaClient) Disconnect() {
-	client.conn.Close()
+func (client *ProximaClient) Disconnect() error {
+	return client.conn.Close()
 }
 
 func streamMessageToModel(msg *pb.StreamMessage) *model.Transition {
