@@ -1,4 +1,5 @@
 host: streams.proxima.one
 port: 443
-stream_id: "v4.domain-events.polygon-mumbai.mangrove.streams.proxima.one"
+stream_id: "eth-main.fungible-token.streams.proxima.one"
+#"v4.domain-events.polygon-mumbai.mangrove.streams.proxima.one"
 buffer_size: 100
