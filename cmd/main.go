@@ -49,10 +49,12 @@ func readBatchedStream(reader *client.StreamReader) {
 			fmt.Printf("Finish stream, breaking processing, or you can wait for the next batch")
 			break
 		}
-		if processed%10000 == 0 {
-			fmt.Println(transition.Event.Timestamp)
+		if processed%40000 == 0 {
+			tType, _ := msg.Preprocess.PreprocessingResult()
+			fmt.Printf("Last transaction type: %s on state %s\n ", tType, transition.NewState.Id)
 			elapsed := time.Since(start)
-			fmt.Printf("Batched Stream processed %f transitions per sec", float64(processed)/elapsed.Seconds())
+			fmt.Printf("Batch Stream processed %f transitions per sec \n", float64(processed)/elapsed.Seconds())
+			fmt.Printf("Buffer load : %f\n", reader.GetStreamBufferLoad())
 		}
 	}
 }
@@ -61,7 +63,7 @@ func readStream(reader *client.StreamReader) {
 	data, _, err := reader.GetRawStream(context.Background(), 5000)
 	start := time.Now()
 	processed := 0
-	processedSince := 0
+
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -78,7 +80,7 @@ func readStream(reader *client.StreamReader) {
 			tType, _ := msg.Preprocess.PreprocessingResult()
 			fmt.Printf("Last transaction type: %s on state %s\n ", tType, transition.NewState.Id)
 			elapsed := time.Since(start)
-			fmt.Printf("Raw Stream processed %f transitions per sec \n", float64(processed-processedSince)/elapsed.Seconds())
+			fmt.Printf("Raw Stream processed %f transitions per sec \n", float64(processed)/elapsed.Seconds())
 			fmt.Printf("Buffer load : %f\n", reader.GetStreamBufferLoad())
 		}
 	}
@@ -95,7 +97,7 @@ func main() {
 	config := config.NewConfigFromYamlFile("config.yaml")
 
 	//go func() {
-	//	reader, err := client.NewStreamReader(*config, model.Genesis())
+	//	reader, err := client.NewStreamReader(*config, model.Genesis(), nil)
 	//	if err != nil {
 	//		fmt.Println(err)
 	//		return
@@ -115,7 +117,7 @@ func main() {
 	}()
 
 	//go func() {
-	//	reader, err := client.NewStreamReader(*config, model.Genesis())
+	//	reader, err := client.NewStreamReader(*config, model.Genesis(), typeFromTransition)
 	//	if err != nil {
 	//		fmt.Println(err)
 	//		return

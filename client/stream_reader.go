@@ -151,6 +151,7 @@ func (reader *StreamReader) GetBatchedStream(ctx context.Context,
 					errc <- err
 					return
 				}
+				reader.bufferLoad = float32(len(result)) / float32(buffer)
 				for _, msg := range messages {
 					result <- reader.streamObjForTransition(msg)
 				}
