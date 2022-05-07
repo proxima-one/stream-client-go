@@ -11,13 +11,16 @@ import (
 	"log"
 )
 
+const defaultChannelSize = 8000
+
 type ProximaClient struct {
-	config *config.Config
+	config config.Config
 	conn   *grpc.ClientConn
 	grpc   pb.MessagesServiceClient
 }
 
-func NewProximaClient(config *config.Config) *ProximaClient {
+func NewProximaClient(config config.Config) *ProximaClient {
+	//todo: log about unused config fields
 	return &ProximaClient{
 		config: config,
 	}
@@ -26,7 +29,7 @@ func NewProximaClient(config *config.Config) *ProximaClient {
 func (client *ProximaClient) Connect() error {
 	address := client.config.GetFullAddress()
 	dialOption := grpc.WithInsecure()
-	if client.config.Port == 443 {
+	if client.config.GetPort() == 443 {
 		dialOption = grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{InsecureSkipVerify: true}))
 	}
 	conn, err := grpc.Dial(address, dialOption)
@@ -77,8 +80,7 @@ func (client *ProximaClient) GetTransitionsAfter(ctx context.Context,
 }
 
 func (client *ProximaClient) GetStream(ctx context.Context,
-	streamState model.StreamState,
-	bufferSize int) (<-chan *model.Transition, <-chan error, error) {
+	streamState model.StreamState) (<-chan *model.Transition, <-chan error, error) {
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -88,18 +90,17 @@ func (client *ProximaClient) GetStream(ctx context.Context,
 		LastMessageId: streamState.State.Id,
 	})
 	if err != nil {
-		log.Fatalf("Error while getting stream, %v", err)
 		return nil, nil, err
 	}
-	result := make(chan *model.Transition, bufferSize)
+	result := make(chan *model.Transition, defaultChannelSize)
 	errc := make(chan error, 1)
 	go func() {
 		defer close(result)
 		defer close(errc)
 		for {
+			//todo: check context cancellation works
 			messages, err := streamClient.Recv()
 			if err != nil {
-				log.Printf("Error while reading stream, %v\n", err)
 				errc <- err
 				break
 			}
