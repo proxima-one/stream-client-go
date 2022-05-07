@@ -39,7 +39,7 @@ func (client *ProximaClient) Connect() error {
 	return nil
 }
 
-func (client *ProximaClient) Disconnect() error {
+func (client *ProximaClient) Close() error {
 	return client.conn.Close()
 }
 
@@ -54,7 +54,10 @@ func streamMessageToModel(msg *pb.StreamMessage) *model.Transition {
 	}
 }
 
-func (client *ProximaClient) GetTransitionsAfter(ctx context.Context, streamState model.StreamState, count int) ([]*model.Transition, error) {
+func (client *ProximaClient) GetTransitionsAfter(ctx context.Context,
+	streamState model.StreamState,
+	count int) ([]*model.Transition, error) {
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -73,7 +76,10 @@ func (client *ProximaClient) GetTransitionsAfter(ctx context.Context, streamStat
 	return transitions, nil
 }
 
-func (client *ProximaClient) GetStream(ctx context.Context, streamState model.StreamState, bufferSize int) (<-chan *model.Transition, <-chan error, error) {
+func (client *ProximaClient) GetStream(ctx context.Context,
+	streamState model.StreamState,
+	bufferSize int) (<-chan *model.Transition, <-chan error, error) {
+
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -97,6 +103,7 @@ func (client *ProximaClient) GetStream(ctx context.Context, streamState model.St
 				errc <- err
 				break
 			}
+
 			for _, msg := range messages.Messages {
 				result <- streamMessageToModel(msg)
 			}

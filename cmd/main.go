@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/proxima-one/streamdb-client-go/client"
 	"github.com/proxima-one/streamdb-client-go/config"
@@ -40,68 +41,90 @@ func readBatchedStream(reader *client.StreamReader) {
 		return
 	}
 	for {
-		transition, ok := <-data
+		msg, ok := <-data
+		transition := msg.Transition
 		processed++
 		if transition == nil || !ok {
 			fmt.Printf("total messages %d\n", processed)
 			fmt.Printf("Finish stream, breaking processing, or you can wait for the next batch")
 			break
 		}
-		if processed%10000 == 0 {
-			fmt.Println(transition.Event.Timestamp)
+		if processed%40000 == 0 {
+			tType, _ := msg.Preprocess.PreprocessingResult()
+			fmt.Printf("Last transaction type: %s on state %s\n ", tType, transition.NewState.Id)
 			elapsed := time.Since(start)
-			fmt.Printf("Batched Stream processed %f transitions per sec", float64(processed)/elapsed.Seconds())
+			fmt.Printf("Batch Stream processed %f transitions per sec \n", float64(processed)/elapsed.Seconds())
+			fmt.Printf("Buffer load : %f\n", reader.GetStreamBufferLoad())
 		}
 	}
 }
 
 func readStream(reader *client.StreamReader) {
+	data, _, err := reader.GetRawStream(context.Background(), 5000)
 	start := time.Now()
 	processed := 0
-	ctx, _ := context.WithTimeout(context.Background(), time.Second*100)
-	data, _, err := reader.GetRawStream(ctx, 10000)
+
 	if err != nil {
 		fmt.Println(err)
 	}
 	for {
-		transition, ok := <-data
+		msg, ok := <-data
+		transition := msg.Transition
 		if !ok {
 			fmt.Printf("total messages %d\n", processed)
 			fmt.Printf("Finish stream")
 			break
 		}
 		processed++
-		if processed%10000 == 0 {
-			fmt.Println(transition.Event.Timestamp)
+		if processed%40000 == 0 {
+			tType, _ := msg.Preprocess.PreprocessingResult()
+			fmt.Printf("Last transaction type: %s on state %s\n ", tType, transition.NewState.Id)
 			elapsed := time.Since(start)
-			fmt.Printf("Raw Stream processed %f transitions per sec", float64(processed)/elapsed.Seconds())
+			fmt.Printf("Raw Stream processed %f transitions per sec \n", float64(processed)/elapsed.Seconds())
+			fmt.Printf("Buffer load : %f\n", reader.GetStreamBufferLoad())
 		}
 	}
+}
+
+func typeFromTransition(transition *model.Transition) (any, error) {
+	m := make(map[string]interface{})
+	payload := transition.Event.Payload
+	err := json.Unmarshal(*payload, &m)
+	return m["type"].(string), err
 }
 
 func main() {
 	config := config.NewConfigFromYamlFile("config.yaml")
 
-	go func() {
-		reader := client.NewStreamReader(*config, model.Genesis())
-		reader.Connect()
-		defer reader.Disconnect()
-		readBatch(reader)
-	}()
+	//go func() {
+	//	reader, err := client.NewStreamReader(*config, model.Genesis(), nil)
+	//	if err != nil {
+	//		fmt.Println(err)
+	//		return
+	//	}
+	//	defer reader.Close()
+	//	readBatch(reader)
+	//}()
 
 	go func() {
-		reader := client.NewStreamReader(*config, model.Genesis())
-		reader.Connect()
-		defer reader.Disconnect()
+		reader, err := client.NewStreamReader(*config, model.Genesis(), typeFromTransition)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer reader.Close()
 		readStream(reader)
 	}()
 
-	go func() {
-		reader := client.NewStreamReader(*config, model.Genesis())
-		reader.Connect()
-		defer reader.Disconnect()
-		readBatchedStream(reader)
-	}()
+	//go func() {
+	//	reader, err := client.NewStreamReader(*config, model.Genesis(), typeFromTransition)
+	//	if err != nil {
+	//		fmt.Println(err)
+	//		return
+	//	}
+	//	defer reader.Close()
+	//	readBatchedStream(reader)
+	//}()
 	for {
 		time.Sleep(time.Second * 10)
 		fmt.Println("")
