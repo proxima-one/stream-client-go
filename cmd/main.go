@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/proxima-one/streamdb-client-go/client"
 	"github.com/proxima-one/streamdb-client-go/config"
@@ -10,7 +9,7 @@ import (
 	"time"
 )
 
-func readBatch(reader *client.StreamReader) {
+func readBatches(reader *client.StreamReader) {
 	start := time.Now()
 	processed := 0
 	for {
@@ -32,101 +31,85 @@ func readBatch(reader *client.StreamReader) {
 	}
 }
 
-func readBatchedStream(reader *client.StreamReader) {
-	start := time.Now()
-	processed := 0
-	data, _, err := reader.GetBatchedStream(context.Background(), 5000, 4000)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	for {
-		msg, ok := <-data
-		transition := msg.Transition
-		processed++
-		if transition == nil || !ok {
-			fmt.Printf("total messages %d\n", processed)
-			fmt.Printf("Finish stream, breaking processing, or you can wait for the next batch")
-			break
-		}
-		if processed%40000 == 0 {
-			tType, _ := msg.Preprocess.PreprocessingResult()
-			fmt.Printf("Last transaction type: %s on state %s\n ", tType, transition.NewState.Id)
-			elapsed := time.Since(start)
-			fmt.Printf("Batch Stream processed %f transitions per sec \n", float64(processed)/elapsed.Seconds())
-			fmt.Printf("Buffer load : %f\n", reader.GetStreamBufferLoad())
-		}
-	}
-}
-
-func readStream(reader *client.StreamReader) {
-	data, _, err := reader.GetRawStream(context.Background(), 5000)
-	start := time.Now()
-	processed := 0
-
-	if err != nil {
-		fmt.Println(err)
-	}
-	for {
-		msg, ok := <-data
-		transition := msg.Transition
-		if !ok {
-			fmt.Printf("total messages %d\n", processed)
-			fmt.Printf("Finish stream")
-			break
-		}
-		processed++
-		if processed%40000 == 0 {
-			tType, _ := msg.Preprocess.PreprocessingResult()
-			fmt.Printf("Last transaction type: %s on state %s\n ", tType, transition.NewState.Id)
-			elapsed := time.Since(start)
-			fmt.Printf("Raw Stream processed %f transitions per sec \n", float64(processed)/elapsed.Seconds())
-			fmt.Printf("Buffer load : %f\n", reader.GetStreamBufferLoad())
-		}
-	}
-}
-
-func typeFromTransition(transition *model.Transition) (any, error) {
-	m := make(map[string]interface{})
-	payload := transition.Event.Payload
-	err := json.Unmarshal(*payload, &m)
-	return m["type"].(string), err
-}
-
 func main() {
-	config := config.NewConfigFromYamlFile("config.yaml")
+	cfg := config.NewConfigFromFileOverwriteOptions(
+		"config.yaml",
+		config.WithChannelSize(10000),
+		config.WithState(model.Genesis()),
+	)
 
-	//go func() {
-	//	reader, err := client.NewStreamReader(*config, model.Genesis(), nil)
-	//	if err != nil {
-	//		fmt.Println(err)
-	//		return
-	//	}
-	//	defer reader.Close()
-	//	readBatch(reader)
-	//}()
+	reader, err := client.NewStreamReader(cfg, client.JsonParsingPreprocessFunc)
 
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	//_, _, err = reader.StartGrpcStreamChannel(context.Background())
+	_, _, err = reader.StartGrpcRpcChannel(context.Background(), 5000)
+
+	// its not safe to use fix count because of server grpc limit
+	// todo: check server limit grpc.MaxRecvMsgSize(????)
+
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer reader.Close()
+
+	start := time.Now()
+	processingTime := time.Duration(time.Second / 100)
+
+	//read and process
 	go func() {
-		reader, err := client.NewStreamReader(*config, model.Genesis(), typeFromTransition)
-		if err != nil {
-			fmt.Println(err)
-			return
+		for {
+			data, err := reader.ReadNext()
+			//available time for processing without loading buffer is usually from time.Nanosecond * 100 to time.Nanosecond * 1000
+			//you can use it to adjust processing time
+			time.Sleep(processingTime) //simulate processing load
+
+			if err != nil {
+				fmt.Println(err)
+				if err.Error() == "context deadline exceeded" {
+					fmt.Println("Finish stream")
+					break
+				}
+				panic(err)
+			}
+			if data == nil {
+				fmt.Println("Finish stream")
+				break
+			}
 		}
-		defer reader.Close()
-		readStream(reader)
 	}()
 
-	//go func() {
-	//	reader, err := client.NewStreamReader(*config, model.Genesis(), typeFromTransition)
-	//	if err != nil {
-	//		fmt.Println(err)
-	//		return
-	//	}
-	//	defer reader.Close()
-	//	readBatchedStream(reader)
-	//}()
+	//balance processing load //you can use it to adjust processing time for example save batch size
+	go func() {
+		for {
+			time.Sleep(time.Second / 10)
+			_, bufferLoad := reader.Metrics()
+			if bufferLoad > 95 {
+				processingTime = processingTime / 2
+			} else {
+				adj := 50 - bufferLoad
+				processingTime = processingTime + time.Duration(adj)*time.Nanosecond
+			}
+		}
+	}()
+
+	//logs
+	go func() {
+		for {
+			time.Sleep(time.Second)
+			count, bufferLoad := reader.Metrics()
+			fmt.Printf("Total messages: %d\n", count)
+			fmt.Printf("Msg per sec : %f\n", float64(count)/time.Since(start).Seconds())
+			fmt.Printf("Buffer load percent: %d\n", bufferLoad)
+			fmt.Printf("Available time for processing: %d Nanosecond\n", processingTime)
+			fmt.Printf("-----------------------------------------------------\n")
+		}
+	}()
+
 	for {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Second * 30)
 		fmt.Println("")
 		fmt.Println("...running...")
 		fmt.Println("")
