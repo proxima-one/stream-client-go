@@ -6,74 +6,95 @@ import (
 	"github.com/proxima-one/streamdb-client-go/client"
 	"github.com/proxima-one/streamdb-client-go/config"
 	"github.com/proxima-one/streamdb-client-go/model"
+	"google.golang.org/grpc/codes"
+	status "google.golang.org/grpc/status"
+	"regexp"
+	"strconv"
 	"time"
 )
 
-func readBatches(reader *client.StreamReader) {
+func getNumberID(id string) string {
+	re := regexp.MustCompile("[0-9]+")
+	return re.FindString(id)
+}
+
+func runLogs(reader *client.StreamReader, processingTime *time.Duration) {
 	start := time.Now()
-	processed := 0
-	for {
-		ctx, _ := context.WithTimeout(context.Background(), time.Second*10)
-		transitions, _ := reader.FetchNextTransitions(ctx, 1000)
-		if len(transitions) == 0 {
-			fmt.Printf("\ntotal messages %d\n", processed)
-			fmt.Printf("Finish stream")
-			break
+	go func() {
+		for {
+			time.Sleep(time.Second)
+			count, bufferLoad := reader.Metrics()
+			fmt.Printf("Total messages: %d\n", count)
+			fmt.Printf("Msg per sec : %f\n", float64(count)/time.Since(start).Seconds())
+			fmt.Printf("Buffer load percent: %d\n", bufferLoad)
+			fmt.Printf("Available time for processing: %d Nanosecond\n", *processingTime)
+			fmt.Printf("-----------------------------------------------------\n")
 		}
-		for _, transition := range transitions {
-			processed++
-			if processed%10000 == 0 {
-				fmt.Println(transition.Event.Timestamp)
-				elapsed := time.Since(start)
-				fmt.Printf("Fetch processed %f transitions per sec", float64(processed)/elapsed.Seconds())
-			}
+	}()
+}
+
+func simulateNetworkProblems(reader *client.StreamReader) {
+	go func() {
+		for {
+			time.Sleep(time.Second * 30)
+			reader.Reconnect()
 		}
-	}
+	}()
 }
 
 func main() {
+	//setup connection
 	cfg := config.NewConfigFromFileOverwriteOptions(
 		"config.yaml",
 		config.WithChannelSize(10000),
 		config.WithState(model.Genesis()),
 	)
 
-	reader, err := client.NewStreamReader(cfg, client.JsonParsingPreprocessFunc)
+	reader := client.NewStreamReader(cfg, client.JsonParsingPreprocessFunc)
+	startParams := client.NewStreamBasedStreamConnectionOption(time.Second * 4)
 
-	if err != nil {
-		fmt.Println(err)
+	startStreamWithRetryFunc := func() {
+		for {
+			restartErr := reader.Start(context.Background(), startParams)
+			if restartErr != nil {
+				fmt.Println(restartErr)
+				time.Sleep(time.Second)
+			} else {
+				break
+			}
+		}
 	}
+	startStreamWithRetryFunc()
 
-	//_, _, err = reader.StartGrpcStreamChannel(context.Background())
-	_, _, err = reader.StartGrpcRpcChannel(context.Background(), 5000)
-
-	// its not safe to use fix count because of server grpc limit
-	// todo: check server limit grpc.MaxRecvMsgSize(????)
-
-	if err != nil {
-		fmt.Println(err)
-	}
-	defer reader.Close()
-
-	start := time.Now()
-	processingTime := time.Duration(time.Second / 100)
+	processingTime := time.Second / 10
 
 	//read and process
+	ind := 0
+
 	go func() {
 		for {
 			data, err := reader.ReadNext()
-			//available time for processing without loading buffer is usually from time.Nanosecond * 100 to time.Nanosecond * 1000
-			//you can use it to adjust processing time
-			time.Sleep(processingTime) //simulate processing load
-
 			if err != nil {
-				fmt.Println(err)
-				if err.Error() == "context deadline exceeded" {
-					fmt.Println("Finish stream")
-					break
+				if status.Code(err) == codes.Unavailable ||
+					status.Code(err) == codes.Canceled {
+					fmt.Println("Network issues, trying to restart stream")
+					startStreamWithRetryFunc()
+					continue
 				}
 				panic(err)
 			}
+
+			if data == nil && err == nil {
+				panic("There should be data or error")
+			}
+			newind, _ := strconv.Atoi(getNumberID(data.Transition.NewState.Id))
+			if newind-ind > 1 {
+				panic("missed item or broken stream")
+			}
+			ind = newind
+			//available time for processing without loading buffer is usually from time.Nanosecond * 100 to time.Nanosecond * 1000
+			//you can use it to adjust processing time maybe increase or decrease internal buffer size or save batch size
+			time.Sleep(processingTime) //simulate processing load
 			if data == nil {
 				fmt.Println("Finish stream")
 				break
@@ -96,22 +117,11 @@ func main() {
 	}()
 
 	//logs
-	go func() {
-		for {
-			time.Sleep(time.Second)
-			count, bufferLoad := reader.Metrics()
-			fmt.Printf("Total messages: %d\n", count)
-			fmt.Printf("Msg per sec : %f\n", float64(count)/time.Since(start).Seconds())
-			fmt.Printf("Buffer load percent: %d\n", bufferLoad)
-			fmt.Printf("Available time for processing: %d Nanosecond\n", processingTime)
-			fmt.Printf("-----------------------------------------------------\n")
-		}
-	}()
+	runLogs(reader, &processingTime)
+	simulateNetworkProblems(reader)
 
 	for {
-		time.Sleep(time.Second * 30)
-		fmt.Println("")
-		fmt.Println("...running...")
+		time.Sleep(time.Second * 300)
 		fmt.Println("")
 	}
 }

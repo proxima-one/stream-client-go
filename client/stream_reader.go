@@ -2,48 +2,117 @@ package client
 
 import (
 	"context"
-	"errors"
 	"github.com/proxima-one/streamdb-client-go/config"
 	"github.com/proxima-one/streamdb-client-go/model"
 	"log"
 	"sync"
+	"time"
 	//"google.golang.org/grpc/credentials" todo: add ssl and auth
 )
 
+const StreamConnectionOptionTypeRpc = "StreamConnectionOptionTypeRpc"
+const StreamConnectionOptionTypeStream = "StreamConnectionOptionTypeStream"
+const StreamConnectionOptionDefaultReconnectTime = time.Hour
+const StreamConnectionOptionDefaultWatchdogTimeout = time.Second * 4
+
+type StreamConnectionOption struct {
+	Type            string
+	ReconnectTime   time.Duration
+	WatchDogTimeout time.Duration
+}
+
+func NewDefaultStreamConnectionOption() *StreamConnectionOption {
+	return &StreamConnectionOption{
+		Type:            StreamConnectionOptionTypeStream,
+		ReconnectTime:   StreamConnectionOptionDefaultReconnectTime,
+		WatchDogTimeout: StreamConnectionOptionDefaultWatchdogTimeout,
+	}
+}
+
+func (conn *StreamConnectionOption) IsEmpty() bool {
+	return conn.Type == ""
+}
+
+func (conn *StreamConnectionOption) WithReconnectTime(reconnectTime time.Duration) *StreamConnectionOption {
+	conn.ReconnectTime = reconnectTime
+	return conn
+}
+
+func (conn *StreamConnectionOption) WithWatchDogTimeout(watchDogTimeout time.Duration) *StreamConnectionOption {
+	conn.WatchDogTimeout = watchDogTimeout
+	return conn
+}
+
+func (conn *StreamConnectionOption) WithType(typeName string) *StreamConnectionOption {
+	conn.Type = typeName
+	return conn
+}
+
+func (conn *StreamConnectionOption) IsRpcBased() bool {
+	return conn.Type == StreamConnectionOptionTypeRpc
+}
+
+func (conn *StreamConnectionOption) IsStreamBased() bool {
+	return conn.Type == StreamConnectionOptionTypeStream
+}
+
+func NewStreamConnectionOption(typeName string) *StreamConnectionOption {
+	res := NewDefaultStreamConnectionOption()
+	return res.WithType(typeName)
+}
+
+func NewRpcBasedStreamConnectionOption() *StreamConnectionOption {
+	return NewStreamConnectionOption(StreamConnectionOptionTypeRpc)
+}
+
+func NewStreamBasedStreamConnectionOption(reconnectTime time.Duration) *StreamConnectionOption {
+	return NewStreamConnectionOption(StreamConnectionOptionTypeStream).WithReconnectTime(reconnectTime)
+}
+
 type StreamReader struct {
-	config         config.Config
-	client         *ProximaClient
-	lastState      model.State
-	mutex          sync.Mutex
+	config    config.Config
+	client    *ProximaClient
+	lastState model.State
+
 	preprocessFunc TransitionPreprocessingFunc
 
 	processedCount int
-	workingChan    *chan *ProximaStreamObject
 
-	runningStream *chan *ProximaStreamObject
-	errStream     *chan error
-	ctx           context.Context
+	streamConnectionOption StreamConnectionOption
+	input                  *<-chan *model.Transition
+	inputErr               *<-chan error
+
+	output    chan *ProximaStreamObject
+	outputErr chan error
+	outputCtx context.Context
+
+	isConnected     bool
+	isConnectedLock sync.RWMutex
+
+	mutex          *sync.Mutex
+	watchdogCancel context.CancelFunc
+	restartSync    chan struct{}
+	stopSync       chan struct{}
 }
 
-func NewStreamReader(config config.Config, preprocess TransitionPreprocessingFunc) (*StreamReader, error) {
+func NewStreamReader(config config.Config, preprocess TransitionPreprocessingFunc) *StreamReader {
 	res := &StreamReader{
 		config:         config,
 		lastState:      config.GetState(),
 		preprocessFunc: preprocess,
+		mutex:          &sync.Mutex{},
 	}
 	res.client = NewProximaClient(res.config)
-	err := res.client.Connect()
-	if err != nil {
-		return nil, err
-	}
-	return res, nil
+	res.restartSync = make(chan struct{})
+	res.stopSync = make(chan struct{})
+	return res
 }
 
 func (reader *StreamReader) GetBufferLoadPercent() int {
-	if reader.workingChan == nil {
+	if reader.output == nil {
 		return 0
 	}
-	load := float32(len(*reader.workingChan)) / float32(reader.config.GetChannelSize()) * 100
+	load := float32(len(reader.output)) / float32(reader.config.GetChannelSize()) * 100
 	return int(load)
 }
 
@@ -51,44 +120,30 @@ func (reader *StreamReader) Metrics() (int, int) {
 	return reader.processedCount, reader.GetBufferLoadPercent()
 }
 
+func (reader *StreamReader) IsConnected() bool {
+	reader.isConnectedLock.RLock()
+	defer reader.isConnectedLock.RUnlock()
+	return reader.isConnected
+}
+
+func (reader *StreamReader) setIsConnected(val bool) {
+	reader.isConnectedLock.Lock()
+	reader.isConnected = val
+	reader.isConnectedLock.Unlock()
+}
+
 func (reader *StreamReader) GetStreamID() string {
 	return reader.config.GetStreamID()
 }
 
-func (reader *StreamReader) FetchNextTransitions(ctx context.Context, count int) ([]*model.Transition, error) {
-	if ctx == nil {
-		ctx = context.Background()
+func (reader *StreamReader) pushObject(obj *ProximaStreamObject) {
+	if reader.output == nil {
+		panic("output channel is nil")
 	}
-	reader.mutex.Lock()
-	transitions, err := reader.client.GetTransitionsAfter(ctx, model.StreamState{
-		StreamID: reader.config.GetStreamID(),
-		State:    reader.lastState,
-	}, count)
-	if err != nil {
-		log.Println("Error fetching transitions: ", err)
-		return nil, err
-	}
-	if len(transitions) == 0 {
-		reader.mutex.Unlock()
-		return nil, errors.New("no transitions found")
-	}
-	reader.lastState = transitions[len(transitions)-1].NewState
-	reader.processedCount += len(transitions)
-	reader.mutex.Unlock()
-	return transitions, err
-}
-
-func (reader *StreamReader) GetRawStreamFromState(ctx context.Context,
-	state model.State) (<-chan *model.Transition, <-chan error, error) {
-
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	stream, errc, err := reader.client.GetStream(ctx, model.StreamState{
-		StreamID: reader.config.GetStreamID(),
-		State:    state,
-	})
-	return stream, errc, err
+	reader.output <- obj
+	reader.lastState = obj.Transition.NewState
+	reader.processedCount++
+	//here can make reconnection
 }
 
 func (reader *StreamReader) streamObjForTransition(transition *model.Transition) *ProximaStreamObject {
@@ -104,107 +159,202 @@ func (reader *StreamReader) streamObjForTransition(transition *model.Transition)
 	}
 }
 
-func (reader *StreamReader) saveWorkingChan(newChan *chan *ProximaStreamObject) {
-	if reader.workingChan != nil {
-		log.Println("Warning: previous stream is still working, cancel context to close it")
-		panic("reader is already working") //todo: add log levels and close previous stream, cancel context
-	}
-	reader.workingChan = newChan
+func (reader *StreamReader) GetStreamChan() (<-chan *ProximaStreamObject, <-chan error) {
+	return reader.output, reader.outputErr
 }
 
-func (reader *StreamReader) StartGrpcStreamChannel(ctx context.Context) (<-chan *ProximaStreamObject, <-chan error, error) {
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	stream, errc, err := reader.GetRawStreamFromState(ctx, reader.lastState)
-	buffer := reader.config.GetChannelSize()
-	result := make(chan *ProximaStreamObject, buffer)
-	errChan := make(chan error, 1)
-	reader.saveWorkingChan(&result)
-	go func() {
-		defer close(result)
-		for {
-			select {
-			case <-ctx.Done():
-				reader.workingChan = nil
-				return
-			case msg, ok := <-stream:
-				if !ok {
-					return
-				}
-				result <- reader.streamObjForTransition(msg)
-				reader.lastState = msg.NewState
-				reader.processedCount++
-
-			case err := <-errc:
-				errChan <- err
-			}
+func (reader *StreamReader) Start(ctx context.Context, option *StreamConnectionOption) error {
+	if !reader.IsConnected() {
+		err := reader.Connect()
+		if err != nil {
+			return err
 		}
-	}()
-	reader.ctx = ctx
-	reader.runningStream = &result
-	reader.errStream = &errChan
-	return result, errc, err
-}
-
-func (reader *StreamReader) StartGrpcRpcChannel(ctx context.Context,
-	count int) (<-chan *ProximaStreamObject, <-chan error, error) {
-
+	}
+	if option == nil {
+		option = &StreamConnectionOption{}
+	}
+	if option.IsEmpty() {
+		option = NewDefaultStreamConnectionOption()
+	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	buffer := reader.config.GetChannelSize()
-	result := make(chan *ProximaStreamObject, buffer)
-	errc := make(chan error, 1)
-	reader.saveWorkingChan(&result)
+
+	var stream <-chan *model.Transition
+	var errc <-chan error
+	var err error
+
+	if option.IsRpcBased() {
+		stream, errc, err = reader.client.GetStreamBasedOnRpc(ctx, model.StreamState{
+			StreamID: reader.config.GetStreamID(),
+			State:    reader.lastState,
+		})
+	}
+	if option.IsStreamBased() {
+		stream, errc, err = reader.client.GetStream(ctx, model.StreamState{
+			StreamID: reader.config.GetStreamID(),
+			State:    reader.lastState,
+		})
+	}
+	if err != nil {
+		return err
+	}
+	reader.input = &stream
+	reader.inputErr = &errc
+
+	if reader.output == nil {
+		reader.output = make(chan *ProximaStreamObject, reader.config.GetChannelSize())
+		reader.outputErr = make(chan error, 1)
+	}
+	reader.outputCtx = ctx
+	reader.streamConnectionOption = *option
+	reader.startProcessing()
+	return nil
+}
+
+func (reader *StreamReader) Reconnect() error {
+	err := reader.Close()
+	if err != nil {
+		return err
+	}
+	err = reader.Connect()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (reader *StreamReader) Connect() error {
+	reader.mutex.Lock()
+	if reader.IsConnected() {
+		reader.mutex.Unlock()
+		return nil
+	}
+	err := reader.client.Connect()
+	if err == nil {
+		reader.setIsConnected(true)
+	}
+	reader.mutex.Unlock()
+	return err
+}
+
+func (reader *StreamReader) Close() error {
+	reader.mutex.Lock()
+	if !reader.IsConnected() {
+		reader.mutex.Unlock()
+		return nil
+	}
+	err := reader.client.Close()
+	if err == nil {
+		reader.setIsConnected(false)
+	}
+	reader.mutex.Unlock()
+	return err
+}
+
+func (reader *StreamReader) restartStream() {
+	if reader.input == nil {
+		return
+	}
+	err := reader.Start(reader.outputCtx, &reader.streamConnectionOption)
+	if err != nil {
+		reader.outputErr <- err
+		return
+	}
+}
+
+func (reader *StreamReader) reconnectAndRestartStream() {
+	err := reader.Reconnect()
+	if err != nil {
+		reader.outputErr <- err
+		return
+	}
+	reader.restartStream()
+}
+
+func (reader *StreamReader) startWatchDog() {
+	if reader.streamConnectionOption.WatchDogTimeout == 0 {
+		return
+	}
+	if reader.watchdogCancel != nil {
+		reader.watchdogCancel()
+	}
+	var ctx context.Context
+	ctx, reader.watchdogCancel = context.WithCancel(context.Background())
+
 	go func() {
-		defer close(result)
-		defer close(errc)
 		for {
 			select {
 			case <-ctx.Done():
-				reader.workingChan = nil
 				return
 			default:
-				messages, err := reader.FetchNextTransitions(ctx, count)
-				if err != nil {
-					errc <- err
-					return
+				lastCount := reader.processedCount
+				time.Sleep(reader.streamConnectionOption.WatchDogTimeout)
+				if !reader.IsConnected() {
+					continue
 				}
-				for _, msg := range messages {
-					result <- reader.streamObjForTransition(msg)
+				if reader.processedCount == lastCount {
+					log.Println("StreamReader watchdog: no new data, reconnecting...")
+					reader.Restart()
 				}
 			}
 		}
 	}()
-	reader.ctx = ctx
-	reader.runningStream = &result
-	reader.errStream = &errc
-	return result, errc, nil
 }
 
-func (reader *StreamReader) Start(ctx context.Context) error {
-	_, _, err := reader.StartGrpcStreamChannel(ctx) //default implementation uses grpc stream
-	return err
+func (reader *StreamReader) startProcessing() {
+	reader.startWatchDog()
+	tick := time.NewTicker(reader.streamConnectionOption.ReconnectTime)
+	go func() {
+		for {
+			select {
+			case <-reader.outputCtx.Done():
+				return
+			case err := <-*reader.inputErr:
+				reader.outputErr <- err
+				return
+			case <-tick.C:
+				reader.reconnectAndRestartStream()
+				return
+			case <-reader.restartSync:
+				reader.reconnectAndRestartStream()
+				return
+			case <-reader.stopSync:
+				return
+			case obj, ok := <-*reader.input:
+				if !ok {
+					log.Println("Error reading next object:" + reader.config.GetStreamID())
+					reader.restartStream()
+					return
+				}
+				reader.pushObject(reader.streamObjForTransition(obj))
+			}
+		}
+
+	}()
+}
+
+func (reader *StreamReader) Restart() {
+	reader.restartSync <- struct{}{}
+}
+
+func (reader *StreamReader) Stop() {
+	reader.stopSync <- struct{}{}
 }
 
 func (reader *StreamReader) ReadNext() (*ProximaStreamObject, error) {
 	select {
-	case <-reader.ctx.Done():
-		return nil, reader.ctx.Err()
+	case <-reader.outputCtx.Done():
+		return nil, reader.outputCtx.Err()
 
-	case obj := <-*reader.runningStream:
+	case obj := <-reader.output:
 		if obj.Preprocess.err != nil {
 			return nil, obj.Preprocess.err
 		}
 		return obj, nil
 
-	case err := <-*reader.errStream:
+	case err := <-reader.outputErr:
 		return nil, err
-
 	}
-}
-
-func (reader *StreamReader) Close() error {
-	return reader.client.Close()
 }
