@@ -46,11 +46,6 @@ func JsonParsingPreprocessFunc(transition *model.Transition) (any, error) {
 }
 
 type ProximaStreamSimpleReaderInterface interface {
-	Start(ctx context.Context) error
+	Start(ctx context.Context, option *StreamConnectionOption) error
 	ReadNext() (*ProximaStreamObject, error)
-}
-
-type ProximaStreamProviderInterface interface {
-	StartGrpcStreamChannel(ctx context.Context) (<-chan *ProximaStreamObject, <-chan error, error)                   //uses grpc stream inside
-	StartGrpcRpcChannel(ctx context.Context, countPerRequest int) (<-chan *ProximaStreamObject, <-chan error, error) //uses grpc rpc call inside
 }
