@@ -35,7 +35,7 @@ func (tr *TransitionPreprocessingResult) PreprocessingResult() (any, error) {
 }
 
 type ProximaStreamObject struct {
-	Transition *model.Transition
+	Transition *model.Transition `json:"transition"`
 	Preprocess *TransitionPreprocessingResult
 }
 

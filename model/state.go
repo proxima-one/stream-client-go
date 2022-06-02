@@ -1,7 +1,7 @@
 package model
 
 type State struct {
-	Id string `yaml:"id"`
+	Id string `json:"id" yaml:"id"`
 }
 
 func Genesis() State {
