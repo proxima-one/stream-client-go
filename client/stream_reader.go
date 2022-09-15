@@ -348,7 +348,7 @@ func (reader *StreamReader) Stop() {
 	reader.stopSync <- struct{}{}
 }
 
-func (reader *StreamReader) ReadNext() (*model.ProximaStreamObject, error) {
+func (reader *StreamReader) ReadNext() (model.StreamObject, error) {
 	select {
 	case <-reader.outputCtx.Done():
 		return nil, reader.outputCtx.Err()

@@ -2,6 +2,13 @@ package model
 
 import "time"
 
+type StreamObject interface {
+	GetTimestamp() time.Time
+	GetUndo() bool
+	GetTransition() *Transition
+	GetPreprocess() *TransitionPreprocessingResult
+}
+
 type ProximaStreamObject struct {
 	Transition *Transition `json:"transition"`
 	Preprocess *TransitionPreprocessingResult
