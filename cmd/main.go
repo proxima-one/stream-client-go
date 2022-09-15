@@ -50,7 +50,7 @@ func main() {
 		config.WithState(model.Genesis()),
 	)
 
-	reader := client.NewStreamReader(cfg, client.JsonParsingPreprocessFunc)
+	reader := client.NewStreamReader(cfg, model.JsonParsingPreprocessFunc)
 	startParams := client.NewStreamBasedStreamConnectionOption(time.Second * 4)
 
 	startStreamWithRetryFunc := func() {

@@ -21,6 +21,11 @@ type StreamConnectionOption struct {
 	WatchDogTimeout time.Duration
 }
 
+type ProximaStreamSimpleReaderInterface interface {
+	Start(ctx context.Context, option *StreamConnectionOption) error
+	ReadNext() (*model.ProximaStreamObject, error)
+}
+
 func NewDefaultStreamConnectionOption() *StreamConnectionOption {
 	return &StreamConnectionOption{
 		Type:            StreamConnectionOptionTypeStream,
@@ -74,7 +79,7 @@ type StreamReader struct {
 	client    *ProximaClient
 	lastState model.State
 
-	preprocessFunc TransitionPreprocessingFunc
+	preprocessFunc model.TransitionPreprocessingFunc
 
 	processedCount int
 
@@ -82,7 +87,7 @@ type StreamReader struct {
 	input                  *<-chan *model.Transition
 	inputErr               *<-chan error
 
-	output    chan *ProximaStreamObject
+	output    chan *model.ProximaStreamObject
 	outputErr chan error
 	outputCtx context.Context
 
@@ -95,7 +100,7 @@ type StreamReader struct {
 	stopSync       chan struct{}
 }
 
-func NewStreamReader(config config.Config, preprocess TransitionPreprocessingFunc) *StreamReader {
+func NewStreamReader(config config.Config, preprocess model.TransitionPreprocessingFunc) *StreamReader {
 	res := &StreamReader{
 		config:         config,
 		lastState:      config.GetState(),
@@ -136,7 +141,7 @@ func (reader *StreamReader) GetStreamID() string {
 	return reader.config.GetStreamID()
 }
 
-func (reader *StreamReader) pushObject(obj *ProximaStreamObject) {
+func (reader *StreamReader) pushObject(obj *model.ProximaStreamObject) {
 	if reader.output == nil {
 		panic("output channel is nil")
 	}
@@ -146,20 +151,20 @@ func (reader *StreamReader) pushObject(obj *ProximaStreamObject) {
 	//here can make reconnection
 }
 
-func (reader *StreamReader) streamObjForTransition(transition *model.Transition) *ProximaStreamObject {
+func (reader *StreamReader) streamObjForTransition(transition *model.Transition) *model.ProximaStreamObject {
 	if reader.preprocessFunc == nil {
-		return &ProximaStreamObject{
+		return &model.ProximaStreamObject{
 			Transition: transition,
 			Preprocess: nil,
 		}
 	}
-	return &ProximaStreamObject{
+	return &model.ProximaStreamObject{
 		Transition: transition,
-		Preprocess: NewTransitionPreprocessingResult(transition, reader.preprocessFunc),
+		Preprocess: model.NewTransitionPreprocessingResult(transition, reader.preprocessFunc),
 	}
 }
 
-func (reader *StreamReader) GetStreamChan() (<-chan *ProximaStreamObject, <-chan error) {
+func (reader *StreamReader) GetStreamChan() (<-chan *model.ProximaStreamObject, <-chan error) {
 	return reader.output, reader.outputErr
 }
 
@@ -203,7 +208,7 @@ func (reader *StreamReader) Start(ctx context.Context, option *StreamConnectionO
 	reader.inputErr = &errc
 
 	if reader.output == nil {
-		reader.output = make(chan *ProximaStreamObject, reader.config.GetChannelSize())
+		reader.output = make(chan *model.ProximaStreamObject, reader.config.GetChannelSize())
 		reader.outputErr = make(chan error, 1)
 	}
 	reader.outputCtx = ctx
@@ -343,14 +348,14 @@ func (reader *StreamReader) Stop() {
 	reader.stopSync <- struct{}{}
 }
 
-func (reader *StreamReader) ReadNext() (*ProximaStreamObject, error) {
+func (reader *StreamReader) ReadNext() (*model.ProximaStreamObject, error) {
 	select {
 	case <-reader.outputCtx.Done():
 		return nil, reader.outputCtx.Err()
 
 	case obj := <-reader.output:
-		if obj.Preprocess.err != nil {
-			return nil, obj.Preprocess.err
+		if obj.Preprocess.Err != nil {
+			return nil, obj.Preprocess.Err
 		}
 		return obj, nil
 

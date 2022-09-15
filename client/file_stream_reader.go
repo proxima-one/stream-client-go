@@ -15,14 +15,14 @@ import (
 type FileStreamReader struct {
 	config                 config.Config
 	lastState              model.State
-	preprocessFunc         TransitionPreprocessingFunc
+	preprocessFunc         model.TransitionPreprocessingFunc
 	processedCount         int
 	streamConnectionOption StreamConnectionOption
 	allTransitions         []*model.Transition
 	timeout                int // timeout between reads (for testing purposes)
 }
 
-func NewFileStreamReader(config config.Config, preprocess TransitionPreprocessingFunc) *FileStreamReader {
+func NewFileStreamReader(config config.Config, preprocess model.TransitionPreprocessingFunc) *FileStreamReader {
 	return &FileStreamReader{
 		config:         config,
 		lastState:      config.GetState(),
@@ -42,8 +42,8 @@ func (reader *FileStreamReader) GetStreamID() string {
 	return reader.config.GetStreamID()
 }
 
-func (reader *FileStreamReader) GetStreamChan() (<-chan *ProximaStreamObject, <-chan error) {
-	return make(<-chan *ProximaStreamObject), make(<-chan error)
+func (reader *FileStreamReader) GetStreamChan() (<-chan *model.ProximaStreamObject, <-chan error) {
+	return make(<-chan *model.ProximaStreamObject), make(<-chan error)
 }
 
 type JsonTransition struct {
@@ -103,14 +103,14 @@ func (reader *FileStreamReader) Restart() {}
 
 func (reader *FileStreamReader) Stop() {}
 
-func (reader *FileStreamReader) transitionToProximaStreamObject(transition *model.Transition) *ProximaStreamObject {
-	return &ProximaStreamObject{
+func (reader *FileStreamReader) transitionToProximaStreamObject(transition *model.Transition) *model.ProximaStreamObject {
+	return &model.ProximaStreamObject{
 		Transition: transition,
-		Preprocess: NewTransitionPreprocessingResult(transition, reader.preprocessFunc),
+		Preprocess: model.NewTransitionPreprocessingResult(transition, reader.preprocessFunc),
 	}
 }
 
-func (reader *FileStreamReader) ReadNext() (*ProximaStreamObject, error) {
+func (reader *FileStreamReader) ReadNext() (*model.ProximaStreamObject, error) {
 	time.Sleep(time.Duration(reader.timeout) * time.Millisecond)
 	if reader.lastState.Id == "" {
 		reader.lastState = reader.allTransitions[0].NewState
