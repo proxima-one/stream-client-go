@@ -1,7 +1,7 @@
 package model
 
 type Stream struct {
-	Id    string `bson:"_id"`
-	Start Offset `bson:"start"`
-	End   Offset `bson:"end"`
+	Name      string                    `json:"name"`
+	Metadata  StreamMetadata            `json:"metadata"`
+	Endpoints map[string]StreamEndpoint `json:"endpoints"`
 }

@@ -51,7 +51,7 @@ func NewStreamRegistryClient(options Options) *StreamRegistryClient {
 }
 
 func (client *StreamRegistryClient) GetStreamEndpoints(stream string, offset *model.Offset) ([]model.StreamEndpoint, error) {
-	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s/offsets/%s/endpoints", stream, offset.ToString())) // todo
+	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s/offsets/%s/endpoints", stream, offset.ToString()))
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +62,14 @@ func (client *StreamRegistryClient) GetStreamEndpoints(stream string, offset *mo
 	return res.Items, err
 }
 
-func (client *StreamRegistryClient) FindStream(stream string) *model.Stream {
-	return nil
+func (client *StreamRegistryClient) FindStream(stream string) (*model.Stream, error) {
+	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s", stream))
+	if err != nil {
+		return nil, err
+	}
+	var res model.Stream
+	err = parseFromHttpResp(resp, &res)
+	return &res, err
 }
 
 func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) []model.Stream {
