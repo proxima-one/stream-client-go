@@ -45,7 +45,7 @@ func main() {
 	}
 	fmt.Printf("%#v\n", streams)
 
-	t := time.Unix(1, 0)
+	t := time.Unix(1669046625, 0)
 	h := int64(1)
 	offset, err = client.FindOffset("proxima.eth-main.blocks.1_0", &h, &t)
 	if err != nil {

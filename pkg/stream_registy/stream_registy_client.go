@@ -120,10 +120,13 @@ func (client *StreamRegistryClient) FindOffset(stream string, height *int64, tim
 		return nil, err
 	}
 	var res struct {
-		Items []model.Stream `json:"items"`
+		Id string `json:"id"`
 	}
 	err = parseFromHttpResp(resp, &res)
-	return nil, err
+	if err != nil {
+		return nil, err
+	}
+	return model.NewOffsetFromString(res.Id)
 }
 
 func parseFromHttpResp[T any](resp *goHttp.Response, obj T) error {
