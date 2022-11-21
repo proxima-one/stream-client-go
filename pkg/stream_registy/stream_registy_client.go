@@ -10,6 +10,7 @@ import (
 	"math"
 	"math/rand"
 	goHttp "net/http"
+	"net/url"
 	"time"
 )
 
@@ -19,31 +20,35 @@ type StreamRegistryClient struct {
 }
 
 type Options struct {
-	Endpoint    string
-	RetryPolicy connection.Policy
+	Endpoint        string
+	RetryPolicy     connection.Policy
+	DebugHttpOutput bool
 }
 
 type StreamFilter struct {
-	Labels map[string]string
+	Labels map[string]string `json:"labels"`
 }
 
 func NewStreamRegistryClient(options Options) *StreamRegistryClient {
 	client := http.NewClient()
 	// Exponential backoff https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
 	client.Backoff = func(min, max time.Duration, attemptNum int, resp *goHttp.Response) time.Duration {
-		var backoff int
+		var backoff int64
 		if attemptNum > 20 { // avoid overflow
-			backoff = int(options.RetryPolicy.RetryMaxDelay)
+			backoff = options.RetryPolicy.RetryMaxDelay.Milliseconds()
 		} else {
-			backoff = int(math.Pow(2, float64(attemptNum))) * int(options.RetryPolicy.RetryBaseDelay)
-			if backoff > int(options.RetryPolicy.RetryMaxDelay) {
-				backoff = int(options.RetryPolicy.RetryMaxDelay)
+			backoff = int64(math.Pow(2, float64(attemptNum))) * options.RetryPolicy.RetryBaseDelay.Milliseconds()
+			if backoff > options.RetryPolicy.RetryMaxDelay.Milliseconds() {
+				backoff = options.RetryPolicy.RetryMaxDelay.Milliseconds()
 			}
 		}
-		return time.Duration((backoff+rand.Intn(backoff))/2) * time.Millisecond
+		return time.Duration((backoff+int64(rand.Intn(int(backoff))))/2) * time.Millisecond
 	}
 	client.HTTPClient = &goHttp.Client{Timeout: options.RetryPolicy.Timeout}
 	client.RetryMax = options.RetryPolicy.RetryCount
+	if !options.DebugHttpOutput {
+		client.Logger = nil
+	}
 	return &StreamRegistryClient{
 		options: options,
 		client:  client,
@@ -72,16 +77,53 @@ func (client *StreamRegistryClient) FindStream(stream string) (*model.Stream, er
 	return &res, err
 }
 
-func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) []model.Stream {
-	return nil
+func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) ([]model.Stream, error) {
+	postBody, _ := json.Marshal(filter)
+	resp, err := client.client.Post(client.options.Endpoint+"/streams", "application/json", postBody)
+	if err != nil {
+		return nil, err
+	}
+	var res struct {
+		Items []model.Stream `json:"items"`
+	}
+	err = parseFromHttpResp(resp, &res)
+	return res.Items, err
 }
 
-func (client *StreamRegistryClient) GetStreams() []model.Stream {
-	return nil
+func (client *StreamRegistryClient) GetStreams() ([]model.Stream, error) {
+	resp, err := client.client.Get(client.options.Endpoint + "/streams")
+	if err != nil {
+		return nil, err
+	}
+	var res struct {
+		Items []model.Stream `json:"items"`
+	}
+	err = parseFromHttpResp(resp, &res)
+	return res.Items, err
 }
 
-func (client *StreamRegistryClient) FindOffset(stream string, height *int64, timestamp *time.Time) *model.Offset {
-	return nil
+func (client *StreamRegistryClient) FindOffset(stream string, height *int64, timestamp *time.Time) (*model.Offset, error) {
+	if height == nil && timestamp == nil {
+		return nil, fmt.Errorf("you should provide either height or timestamp")
+	}
+
+	queryParams, _ := url.ParseQuery("")
+	if height != nil {
+		queryParams.Add("height", fmt.Sprint(*height))
+	}
+	if timestamp != nil {
+		queryParams.Add("timestamp", fmt.Sprint(timestamp.UnixMilli()))
+	}
+
+	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s/offsets/find?%s", stream, queryParams.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	var res struct {
+		Items []model.Stream `json:"items"`
+	}
+	err = parseFromHttpResp(resp, &res)
+	return nil, err
 }
 
 func parseFromHttpResp[T any](resp *goHttp.Response, obj T) error {
