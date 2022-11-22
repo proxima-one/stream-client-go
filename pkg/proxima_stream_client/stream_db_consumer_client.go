@@ -42,12 +42,13 @@ func newStreamDbConsumerClient(uri string) (*streamDbConsumerClient, error) {
 }
 
 func (c *streamDbConsumerClient) getEvents(
-	ctx context.Context,
 	stream string,
 	offset *model.Offset,
 	count int,
 	direction Direction) ([]model.StreamEvent, error) {
 
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // todo: timeout?
+	defer cancel()
 	resp, err := c.client.GetStateTransitions(ctx, &streamConsumer.GetStateTransitionsRequest{
 		StreamId:  stream,
 		Offset:    modelOffsetToProto(offset),
@@ -73,7 +74,7 @@ func (c *streamDbConsumerClient) streamEvents(
 	if err != nil {
 		return err
 	}
-	for {
+	for ctx.Err() == nil {
 		resp, err := stream.Recv()
 		if err != nil {
 			return err
@@ -82,4 +83,5 @@ func (c *streamDbConsumerClient) streamEvents(
 			eventsStream <- protoStateTransitionToStreamEvent(stateTransition)
 		}
 	}
+	return nil
 }
