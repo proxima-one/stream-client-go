@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package stream_consumer.v1alpha1;
+
+import "model/v1/model.proto";
+
+message FindStreamRequest {
+  string stream_id = 1;
+}
+
+message FindStreamResponse {
+  model.v1.Stream stream = 1;
+}
+
+message FindOffsetRequest {
+  string stream_id = 1;
+  oneof offset_filter { 
+    int64 height = 2;
+    model.v1.Timestamp timestamp = 3;
+  }
+}
+
+message FindOffsetResponse {
+  model.v1.Offset offset = 1;
+}
+
+message GetStateTransitionsRequest {
+  string stream_id = 1;
+  model.v1.Offset offset = 2;
+  int32 count = 3;
+  Direction direction = 4;
+}
+
+enum Direction {
+    NEXT = 0;
+    LAST = 1;
+  }
+
+message GetStateTransitionsResponse {
+  repeated model.v1.StateTransition state_transitions = 1;
+}
+
+message StreamStateTransitionsRequest {
+  string stream_id = 1; 
+  model.v1.Offset offset = 2;
+}
+
+message StreamStateTransitionsResponse {
+  repeated model.v1.StateTransition state_transition = 1;
+}
+
+
+service StreamConsumerService {
+  rpc FindStream(FindStreamRequest) returns (FindStreamResponse) {}
+  rpc FindOffset(FindOffsetRequest) returns (FindOffsetResponse) {}
+  rpc GetStateTransitions(GetStateTransitionsRequest) returns (GetStateTransitionsResponse) {}
+  rpc StreamStateTransitions(StreamStateTransitionsRequest) returns (stream StreamStateTransitionsResponse) {}
+}
