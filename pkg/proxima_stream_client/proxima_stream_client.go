@@ -45,12 +45,27 @@ func (client *ProximaStreamClient) StreamEvents(
 	streamId string,
 	offset *model.Offset,
 	bufferSize int) <-chan model.StreamEvent {
-	// todo: handle errors
-	stream := make(chan model.StreamEvent, bufferSize)
 
-	endpoint, _ := client.findEndpoint(streamId, offset)
-	streamClient, _ := client.getStreamConsumerClient(endpoint.Uri)
-	go streamClient.streamEvents(ctx, streamId, offset, stream)
+	stream := make(chan model.StreamEvent, bufferSize)
+	lastOffset := offset
+	go func() {
+		for { // infinite retry
+			endpoint, err := client.findEndpoint(streamId, lastOffset)
+			if err != nil {
+				client.offsetToEndpointCache.Delete(streamId + lastOffset.ToString()) // get new endpoint from registry next time
+				continue
+			}
+			streamClient, err := client.getStreamConsumerClient(endpoint.Uri)
+			if err != nil {
+				delete(client.clientsByUri, endpoint.Uri) // recreate client next time
+				continue
+			}
+			lastOffset, err = streamClient.streamEvents(ctx, streamId, lastOffset, stream)
+			if err != nil {
+				continue
+			}
+		}
+	}()
 	return stream
 }
 

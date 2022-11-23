@@ -62,7 +62,7 @@ func (this *Offset) Equals(offset *Offset) bool {
 }
 
 func ZeroOffset() *Offset {
-	return NewOffset("0", 0, ZeroTimestamp())
+	return NewOffset("", 0, ZeroTimestamp())
 }
 
 func (this *Offset) CanSucceed(offset Offset) bool {

@@ -6,6 +6,7 @@ import (
 	"github.com/proxima-one/streamdb-client-go/pkg/utils"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Timestamp struct {
@@ -23,6 +24,10 @@ func NewTimestamp(epochMs int64, parts []string) *Timestamp {
 
 func (this *Timestamp) ToDebugString() string {
 	return fmt.Sprintf("%v, %s", this.EpochMs, strings.Join(this.Parts, ","))
+}
+
+func (this *Timestamp) ToTime() time.Time {
+	return time.Unix(this.EpochMs/1000, this.EpochMs%1000*1e6)
 }
 
 func (this *Timestamp) ToString() string {

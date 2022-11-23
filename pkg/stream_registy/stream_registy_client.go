@@ -42,6 +42,7 @@ func NewStreamRegistryClient(options Options) *StreamRegistryClient {
 				backoff = options.RetryPolicy.RetryMaxDelay.Milliseconds()
 			}
 		}
+		println((time.Duration((backoff+int64(rand.Intn(int(backoff))))/2) * time.Millisecond).String())
 		return time.Duration((backoff+int64(rand.Intn(int(backoff))))/2) * time.Millisecond
 	}
 	client.HTTPClient = &goHttp.Client{Timeout: options.RetryPolicy.Timeout}

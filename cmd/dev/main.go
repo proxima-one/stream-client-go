@@ -86,7 +86,7 @@ func testStreamDbClientFetch() {
 	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
 	events, err := client.FetchEvents(
 		"proxima.eth-main.blocks.1_0",
-		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
+		model.ZeroOffset(),
 		10,
 		proxima_stream_client.DirectionNext,
 	)
@@ -104,15 +104,17 @@ func testStreamDbClientStream() {
 		context.Background(),
 		"proxima.eth-main.blocks.1_0",
 		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
-		10,
+		1,
 	)
-	for i := 0; i < 5; i++ {
-		spew.Dump(<-events)
+	for i := 0; ; i++ {
+		event := <-events
+		println(i, event.Offset.ToString(), event.Timestamp.ToTime().String())
+		time.Sleep(100 * time.Millisecond)
 	}
 }
 
 func main() {
 	// testStreamRegistryClient()
-
+	// testStreamDbClientFetch()
 	testStreamDbClientStream()
 }

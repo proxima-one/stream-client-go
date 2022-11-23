@@ -66,23 +66,26 @@ func (c *streamDbConsumerClient) streamEvents(
 	ctx context.Context,
 	streamId string,
 	offset *model.Offset,
-	eventsStream chan<- model.StreamEvent) error {
+	eventsStream chan<- model.StreamEvent) (*model.Offset, error) {
 
 	stream, err := c.client.StreamStateTransitions(ctx, &streamConsumer.StreamStateTransitionsRequest{
 		StreamId: streamId,
 		Offset:   modelOffsetToProto(offset),
 	})
 	if err != nil {
-		return err
+		return offset, err
 	}
+	var lastOffset *model.Offset
 	for ctx.Err() == nil {
 		resp, err := stream.Recv()
 		if err != nil {
-			return err
+			return lastOffset, err
 		}
 		for _, stateTransition := range resp.StateTransition {
-			eventsStream <- protoStateTransitionToStreamEvent(stateTransition)
+			event := protoStateTransitionToStreamEvent(stateTransition)
+			lastOffset = &event.Offset
+			eventsStream <- event
 		}
 	}
-	return nil
+	return lastOffset, nil
 }
