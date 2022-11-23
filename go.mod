@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/hashicorp/go-retryablehttp v0.7.1
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	google.golang.org/grpc v1.51.0
 	google.golang.org/protobuf v1.28.1
 )
