@@ -2,54 +2,102 @@ package main
 
 import (
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/proxima-one/streamdb-client-go/pkg/connection"
 	"github.com/proxima-one/streamdb-client-go/pkg/model"
+	"github.com/proxima-one/streamdb-client-go/pkg/proxima_stream_client"
 	"github.com/proxima-one/streamdb-client-go/pkg/stream_registy"
 	"time"
 )
 
-func main() {
-	client := stream_registy.NewStreamRegistryClient(stream_registy.Options{
-		Endpoint:        "https://streams.api.proxima.one",
-		RetryPolicy:     connection.DefaultPolicy(),
-		DebugHttpOutput: false,
-	})
+var streamRegistryClient *stream_registy.StreamRegistryClient
 
+func getStreamEndpoints() {
 	offset, err := model.NewOffsetFromString("15860589-0xc4db4f4a6c48ffb0d5441cb079cfecf50c528ea3190793be04811c6e2076e27b-1667129423000")
 	if err != nil {
 		panic(err.Error())
 	}
-	endpoints, err := client.GetStreamEndpoints("proxima.eth-main.blocks.1_0", offset)
+	endpoints, err := streamRegistryClient.GetStreamEndpoints("proxima.eth-main.blocks.1_0", offset)
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Printf("%#v\n", endpoints)
+	spew.Dump(endpoints)
+}
 
-	stream, err := client.FindStream("proxima.eth-main.blocks.1_0")
+func findStream() {
+	stream, err := streamRegistryClient.FindStream("proxima.eth-main.blocks.1_0")
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Printf("%#v\n", stream)
+	spew.Dump(stream)
+}
 
-	streams, err := client.GetStreams()
+func getStreams() {
+	streams, err := streamRegistryClient.GetStreams()
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Printf("%#v\n", streams)
+	spew.Dump(streams)
+}
 
-	streams, err = client.FindStreams(&stream_registy.StreamFilter{Labels: map[string]string{
+func findStreams() {
+	streams, err := streamRegistryClient.FindStreams(&stream_registy.StreamFilter{Labels: map[string]string{
 		"encoding": "json",
 	}})
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Printf("%#v\n", streams)
+	spew.Dump(streams)
+}
 
+func findOffset() {
 	t := time.Unix(1669046625, 0)
 	h := int64(1)
-	offset, err = client.FindOffset("proxima.eth-main.blocks.1_0", &h, &t)
+	offset, err := streamRegistryClient.FindOffset("proxima.eth-main.blocks.1_0", &h, &t)
 	if err != nil {
 		panic(err.Error())
 	}
-	fmt.Printf("%#v\n", offset)
+	spew.Dump(offset)
+}
+
+func testStreamRegistryClient() {
+	streamRegistryClient = stream_registy.NewStreamRegistryClient(stream_registy.Options{
+		Endpoint:        "https://streams.api.proxima.one",
+		RetryPolicy:     connection.DefaultPolicy(),
+		DebugHttpOutput: false,
+	})
+
+	println("\n==================================== getStreamEndpoints() ====================================\n")
+	getStreamEndpoints()
+	println("\n==================================== findStream() ====================================\n")
+	findStream()
+	println("\n==================================== getStreams() ====================================\n")
+	getStreams()
+	println("\n==================================== findStreams() ====================================\n")
+	findStreams()
+	println("\n==================================== findOffset() ====================================\n")
+	findOffset()
+	println("\n========================================================================\n")
+}
+
+func testStreamDbClient() {
+	registry := stream_registy.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
+	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
+	events, err := client.FetchEvents(
+		"proxima.eth-main.blocks.1_0",
+		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
+		10,
+		proxima_stream_client.DirectionNext,
+	)
+	if err != nil {
+		panic(err.Error())
+	}
+	fmt.Println(len(events))
+	spew.Dump(events[0])
+}
+
+func main() {
+	// testStreamRegistryClient()
+
+	testStreamDbClient()
 }

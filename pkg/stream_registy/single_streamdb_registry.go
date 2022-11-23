@@ -6,8 +6,8 @@ type SingleStreamDbRegistry struct {
 	endpoint *model.StreamEndpoint
 }
 
-func NewSingleStreamDbRegistry(endpoint *model.StreamEndpoint) *SingleStreamDbRegistry {
-	return &SingleStreamDbRegistry{endpoint: endpoint}
+func NewSingleStreamDbRegistry(streamDbUri string) *SingleStreamDbRegistry {
+	return &SingleStreamDbRegistry{endpoint: &model.StreamEndpoint{Uri: streamDbUri}}
 }
 
 func (registry *SingleStreamDbRegistry) GetStreamEndpoints(string, *model.Offset) ([]model.StreamEndpoint, error) {

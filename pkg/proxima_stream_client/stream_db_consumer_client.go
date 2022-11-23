@@ -3,6 +3,7 @@ package proxima_stream_client
 import (
 	"context"
 	"crypto/tls"
+	"fmt"
 	"github.com/proxima-one/streamdb-client-go/pkg/model"
 	"github.com/proxima-one/streamdb-client-go/pkg/utils"
 	streamConsumer "github.com/proxima-one/streamdb-client-go/proto/gen/proto/go/stream_consumer/v1alpha1"
@@ -56,7 +57,7 @@ func (c *streamDbConsumerClient) getEvents(
 		Direction: modelDirectionToProto(direction),
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("streamDbConsumerClient.getEvents: %s", err.Error())
 	}
 	return utils.MapArray(resp.StateTransitions, protoStateTransitionToStreamEvent), nil
 }

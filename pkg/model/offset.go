@@ -12,11 +12,11 @@ type Offset struct {
 	Timestamp Timestamp `bson:"timestamp"`
 }
 
-func NewOffset(id string, height int64, timestamp Timestamp) *Offset {
+func NewOffset(id string, height int64, timestamp *Timestamp) *Offset {
 	if len(id) == 0 && height > 0 {
 		panic("Offset constructor: invalid args.")
 	}
-	return &Offset{id, height, timestamp}
+	return &Offset{id, height, *timestamp}
 }
 
 func (this *Offset) UnmarshalJSON(data []byte) error {
@@ -62,7 +62,7 @@ func (this *Offset) Equals(offset *Offset) bool {
 }
 
 func ZeroOffset() *Offset {
-	return NewOffset("0", 0, *ZeroTimestamp())
+	return NewOffset("0", 0, ZeroTimestamp())
 }
 
 func (this *Offset) CanSucceed(offset Offset) bool {

@@ -3,6 +3,7 @@ module github.com/proxima-one/streamdb-client-go
 go 1.18
 
 require (
+	github.com/davecgh/go-spew v1.1.1
 	github.com/hashicorp/go-retryablehttp v0.7.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	google.golang.org/grpc v1.51.0
