@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/proxima-one/streamdb-client-go/pkg/connection"
@@ -80,7 +81,7 @@ func testStreamRegistryClient() {
 	println("\n========================================================================\n")
 }
 
-func testStreamDbClient() {
+func testStreamDbClientFetch() {
 	registry := stream_registy.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
 	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
 	events, err := client.FetchEvents(
@@ -96,8 +97,22 @@ func testStreamDbClient() {
 	spew.Dump(events[0])
 }
 
+func testStreamDbClientStream() {
+	registry := stream_registy.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
+	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
+	events := client.StreamEvents(
+		context.Background(),
+		"proxima.eth-main.blocks.1_0",
+		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
+		10,
+	)
+	for i := 0; i < 5; i++ {
+		spew.Dump(<-events)
+	}
+}
+
 func main() {
 	// testStreamRegistryClient()
 
-	testStreamDbClient()
+	testStreamDbClientStream()
 }
