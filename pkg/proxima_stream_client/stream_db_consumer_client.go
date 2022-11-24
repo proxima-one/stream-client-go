@@ -79,6 +79,9 @@ func (c *streamDbConsumerClient) streamEvents(
 	for ctx.Err() == nil {
 		resp, err := stream.Recv()
 		if err != nil {
+			if ctx.Err() != nil { // ignore context cancel error as we're in an infinite loop
+				return lastOffset, nil
+			}
 			return lastOffset, err
 		}
 		for _, stateTransition := range resp.StateTransition {

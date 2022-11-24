@@ -100,8 +100,9 @@ func testStreamDbClientFetch() {
 func testStreamDbClientStream() {
 	registry := stream_registy.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
 	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	events := client.StreamEvents(
-		context.Background(),
+		ctx,
 		"proxima.eth-main.blocks.1_0",
 		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
 		1,

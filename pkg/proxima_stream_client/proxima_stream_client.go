@@ -64,6 +64,10 @@ func (client *ProximaStreamClient) StreamEvents(
 			if err != nil {
 				continue
 			}
+
+			// streamEvents exited with nil error
+			close(stream)
+			break
 		}
 	}()
 	return stream
