@@ -49,6 +49,6 @@ func modelDirectionToProto(direction Direction) stream_consumerv1alpha1.Directio
 	case DirectionNext:
 		return stream_consumerv1alpha1.Direction_NEXT
 	default:
-		panic("unknown direction")
+		panic("modelDirectionToProto: unknown direction")
 	}
 }

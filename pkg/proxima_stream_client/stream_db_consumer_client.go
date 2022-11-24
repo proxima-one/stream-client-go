@@ -48,7 +48,7 @@ func (c *streamDbConsumerClient) getEvents(
 	count int,
 	direction Direction) ([]model.StreamEvent, error) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // todo: timeout?
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // todo timeout?
 	defer cancel()
 	resp, err := c.client.GetStateTransitions(ctx, &streamConsumer.GetStateTransitionsRequest{
 		StreamId:  stream,

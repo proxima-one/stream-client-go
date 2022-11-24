@@ -82,17 +82,15 @@ func (this *Timestamp) Compare(timestamp Timestamp) int {
 			if a > b {
 				return 1
 			}
-
 			if a < b {
 				return -1
 			}
-			return 0
+			continue
 		}
 
 		if this.Parts[i] > timestamp.Parts[i] {
 			return 1
 		}
-
 		if this.Parts[i] < timestamp.Parts[i] {
 			return -1
 		}
