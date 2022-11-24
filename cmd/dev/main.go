@@ -101,21 +101,39 @@ func testStreamDbClientStream() {
 	registry := stream_registy.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
 	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
-	events := client.StreamEvents(
+	stream := client.StreamEvents(
 		ctx,
 		"proxima.eth-main.blocks.1_0",
 		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
 		1,
 	)
 	for i := 0; ; i++ {
-		event := <-events
+		event := <-stream
 		println(i, event.Offset.ToString(), event.Timestamp.ToTime().String())
 		time.Sleep(100 * time.Millisecond)
+	}
+}
+
+func testStreamDbClientStreamWithBufferedReader() {
+	registry := stream_registy.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
+	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
+	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
+	stream := client.StreamEvents(
+		ctx,
+		"proxima.eth-main.blocks.1_0",
+		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
+		1000,
+	)
+	reader := proxima_stream_client.NewBufferedStreamReader(stream)
+	for i := 0; ; i++ {
+		events := reader.TryRead(50)
+		println(i, len(events))
 	}
 }
 
 func main() {
 	// testStreamRegistryClient()
 	// testStreamDbClientFetch()
-	testStreamDbClientStream()
+	// testStreamDbClientStream()
+	testStreamDbClientStreamWithBufferedReader()
 }
