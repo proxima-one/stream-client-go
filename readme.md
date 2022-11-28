@@ -18,7 +18,7 @@ client := proxima_stream_client.NewProximaStreamClient(
 	proxima_stream_client.Options{Registry: registry}, 
 )
 ```
-As a `registry` you can use either `streamRegistryClient` from previous example or create `SingleStreamDbRegistry`:
+You can use either `streamRegistryClient` from previous example or create `SingleStreamDbRegistry` as a `registry`:
 ```go
 singleRegistryClient := stream_registy.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
 ```
