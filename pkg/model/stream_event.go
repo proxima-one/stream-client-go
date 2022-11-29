@@ -1,8 +1,9 @@
 package model
 
 type StreamEvent struct {
-	Offset    Offset
-	Payload   []byte
-	Timestamp Timestamp
-	Undo      bool
+	Offset     Offset
+	PrevOffset Offset
+	Payload    []byte
+	Timestamp  Timestamp
+	Undo       bool
 }

@@ -8,10 +8,11 @@ import (
 
 func protoStateTransitionToStreamEvent(transition *modelv1.StateTransition) model.StreamEvent {
 	return model.StreamEvent{
-		Payload:   transition.Event.Payload,
-		Undo:      transition.Event.Undo,
-		Offset:    protoOffsetToModel(transition.To),
-		Timestamp: protoTimestampToModel(transition.Event.Timestamp),
+		Payload:    transition.Event.Payload,
+		Undo:       transition.Event.Undo,
+		Offset:     protoOffsetToModel(transition.To),
+		PrevOffset: protoOffsetToModel(transition.From),
+		Timestamp:  protoTimestampToModel(transition.Event.Timestamp),
 	}
 }
 
