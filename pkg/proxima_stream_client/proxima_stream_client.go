@@ -13,14 +13,14 @@ import (
 type ProximaStreamClient struct {
 	registry              stream_registy.StreamRegistry
 	clientsByUri          map[string]*internal.StreamDbConsumerClient
-	offsetToEndpointCache *cache.Cache
+	endpointByOffsetCache *cache.Cache
 }
 
 func NewProximaStreamClient(options Options) *ProximaStreamClient {
 	return &ProximaStreamClient{
 		registry:              options.Registry,
 		clientsByUri:          make(map[string]*internal.StreamDbConsumerClient),
-		offsetToEndpointCache: cache.New(5*time.Minute, 10*time.Minute),
+		endpointByOffsetCache: cache.New(5*time.Minute, 10*time.Minute),
 	}
 }
 
@@ -37,7 +37,7 @@ func (client *ProximaStreamClient) FetchEvents(stream string, offset *stream_mod
 	if err != nil {
 		return nil, err
 	}
-	client.offsetToEndpointCache.Set(stream+events[len(events)-1].Offset.ToString(), endpoint, 0) // with default expiration
+	client.endpointByOffsetCache.Set(stream+events[len(events)-1].Offset.ToString(), endpoint, 0) // with default expiration
 	return events, nil
 }
 
@@ -53,7 +53,7 @@ func (client *ProximaStreamClient) StreamEvents(
 		for { // infinite retry
 			endpoint, err := client.findEndpoint(streamId, lastOffset)
 			if err != nil {
-				client.offsetToEndpointCache.Delete(streamId + lastOffset.ToString()) // get new endpoint from registry next time
+				client.endpointByOffsetCache.Delete(streamId + lastOffset.ToString()) // get new endpoint from registry next time
 				continue
 			}
 			streamClient, err := client.getStreamConsumerClient(endpoint.Uri)
@@ -75,7 +75,7 @@ func (client *ProximaStreamClient) StreamEvents(
 }
 
 func (client *ProximaStreamClient) findEndpoint(stream string, offset *stream_model.Offset) (res *stream_model.StreamEndpoint, err error) {
-	if cachedEndpoint, ok := client.offsetToEndpointCache.Get(stream + offset.ToString()); ok {
+	if cachedEndpoint, ok := client.endpointByOffsetCache.Get(stream + offset.ToString()); ok {
 		return cachedEndpoint.(*stream_model.StreamEndpoint), nil
 	}
 
@@ -96,7 +96,7 @@ func (client *ProximaStreamClient) findEndpoint(stream string, offset *stream_mo
 			res = &endpoint
 		}
 	}
-	client.offsetToEndpointCache.Set(stream+offset.ToString(), res, 0) // with default expiration
+	client.endpointByOffsetCache.Set(stream+offset.ToString(), res, 0) // with default expiration
 	return
 }
 
