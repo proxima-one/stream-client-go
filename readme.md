@@ -1,4 +1,4 @@
-# Golang Proxima.one StreamDB Client:
+# Golang Proxima.one StreamDB Client
 
 ## Stream Registry Client
 Implements all methods of the Proxima Streams API that is also available at https://streams.api.proxima.one.
