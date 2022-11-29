@@ -1,15 +1,17 @@
 package stream_registy
 
-import "github.com/proxima-one/streamdb-client-go/pkg/model"
+import (
+	"github.com/proxima-one/streamdb-client-go/pkg/stream_model"
+)
 
 type SingleStreamDbRegistry struct {
-	endpoint *model.StreamEndpoint
+	endpoint *stream_model.StreamEndpoint
 }
 
 func NewSingleStreamDbRegistry(streamDbUri string) *SingleStreamDbRegistry {
-	return &SingleStreamDbRegistry{endpoint: &model.StreamEndpoint{Uri: streamDbUri}}
+	return &SingleStreamDbRegistry{endpoint: &stream_model.StreamEndpoint{Uri: streamDbUri}}
 }
 
-func (registry *SingleStreamDbRegistry) GetStreamEndpoints(string, *model.Offset) ([]model.StreamEndpoint, error) {
-	return []model.StreamEndpoint{*registry.endpoint}, nil
+func (registry *SingleStreamDbRegistry) GetStreamEndpoints(string, *stream_model.Offset) ([]stream_model.StreamEndpoint, error) {
+	return []stream_model.StreamEndpoint{*registry.endpoint}, nil
 }

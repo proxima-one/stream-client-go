@@ -1,4 +1,4 @@
-package proxima_stream_client
+package stream_model
 
 type Direction string
 

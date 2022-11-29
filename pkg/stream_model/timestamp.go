@@ -1,9 +1,9 @@
-package model
+package stream_model
 
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/proxima-one/streamdb-client-go/pkg/utils"
+	"github.com/proxima-one/streamdb-client-go/internal"
 	"strconv"
 	"strings"
 	"time"
@@ -47,7 +47,7 @@ func NewTimestampFromString(s string) (*Timestamp, error) {
 		return nil, fmt.Errorf("string represetation of timestamp can't have more than 2 parts or less than 1")
 	}
 
-	epochMs, err := utils.StringToInt64(timestampParts[0])
+	epochMs, err := internal.StringToInt64(timestampParts[0])
 	if err != nil {
 		return nil, err
 	}
@@ -72,7 +72,7 @@ func (this *Timestamp) Compare(timestamp Timestamp) int {
 		return 1
 	}
 
-	minLength := utils.Min(len(this.Parts), len(timestamp.Parts))
+	minLength := internal.Min(len(this.Parts), len(timestamp.Parts))
 
 	for i := 0; i < minLength; i++ {
 		a, aerr := strconv.Atoi(this.Parts[i])

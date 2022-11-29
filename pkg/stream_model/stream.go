@@ -1,4 +1,4 @@
-package model
+package stream_model
 
 type Stream struct {
 	Name      string                    `json:"name"`

@@ -1,8 +1,8 @@
-package model
+package stream_model
 
 import (
 	"fmt"
-	"github.com/proxima-one/streamdb-client-go/pkg/utils"
+	"github.com/proxima-one/streamdb-client-go/internal"
 	"strings"
 )
 
@@ -40,7 +40,7 @@ func NewOffsetFromString(str string) (*Offset, error) {
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("offset parts size must be 3")
 	}
-	offset.Height, err = utils.StringToInt64(parts[0])
+	offset.Height, err = internal.StringToInt64(parts[0])
 	if err != nil {
 		return nil, err
 	}

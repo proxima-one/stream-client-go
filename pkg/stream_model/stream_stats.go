@@ -1,4 +1,4 @@
-package model
+package stream_model
 
 type StreamStats struct {
 	Id          string  `json:"id"`

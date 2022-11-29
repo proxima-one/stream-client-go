@@ -5,7 +5,7 @@ import (
 	"fmt"
 	http "github.com/hashicorp/go-retryablehttp"
 	"github.com/proxima-one/streamdb-client-go/pkg/connection"
-	"github.com/proxima-one/streamdb-client-go/pkg/model"
+	"github.com/proxima-one/streamdb-client-go/pkg/stream_model"
 	"io"
 	"math"
 	"math/rand"
@@ -56,54 +56,54 @@ func NewStreamRegistryClient(options Options) *StreamRegistryClient {
 	}
 }
 
-func (client *StreamRegistryClient) GetStreamEndpoints(stream string, offset *model.Offset) ([]model.StreamEndpoint, error) {
+func (client *StreamRegistryClient) GetStreamEndpoints(stream string, offset *stream_model.Offset) ([]stream_model.StreamEndpoint, error) {
 	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s/offsets/%s/endpoints", stream, offset.ToString()))
 	if err != nil {
 		return nil, err
 	}
 	var res struct {
-		Items []model.StreamEndpoint `json:"items"`
+		Items []stream_model.StreamEndpoint `json:"items"`
 	}
 	err = parseFromHttpResp(resp, &res)
 	return res.Items, err
 }
 
-func (client *StreamRegistryClient) FindStream(stream string) (*model.Stream, error) {
+func (client *StreamRegistryClient) FindStream(stream string) (*stream_model.Stream, error) {
 	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s", stream))
 	if err != nil {
 		return nil, err
 	}
-	var res model.Stream
+	var res stream_model.Stream
 	err = parseFromHttpResp(resp, &res)
 	return &res, err
 }
 
-func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) ([]model.Stream, error) {
+func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) ([]stream_model.Stream, error) {
 	postBody, _ := json.Marshal(filter)
 	resp, err := client.client.Post(client.options.Endpoint+"/streams", "application/json", postBody)
 	if err != nil {
 		return nil, err
 	}
 	var res struct {
-		Items []model.Stream `json:"items"`
+		Items []stream_model.Stream `json:"items"`
 	}
 	err = parseFromHttpResp(resp, &res)
 	return res.Items, err
 }
 
-func (client *StreamRegistryClient) GetStreams() ([]model.Stream, error) {
+func (client *StreamRegistryClient) GetStreams() ([]stream_model.Stream, error) {
 	resp, err := client.client.Get(client.options.Endpoint + "/streams")
 	if err != nil {
 		return nil, err
 	}
 	var res struct {
-		Items []model.Stream `json:"items"`
+		Items []stream_model.Stream `json:"items"`
 	}
 	err = parseFromHttpResp(resp, &res)
 	return res.Items, err
 }
 
-func (client *StreamRegistryClient) FindOffset(stream string, height *int64, timestamp *time.Time) (*model.Offset, error) {
+func (client *StreamRegistryClient) FindOffset(stream string, height *int64, timestamp *time.Time) (*stream_model.Offset, error) {
 	if height == nil && timestamp == nil {
 		return nil, fmt.Errorf("you should provide either height or timestamp")
 	}
@@ -127,7 +127,7 @@ func (client *StreamRegistryClient) FindOffset(stream string, height *int64, tim
 	if err != nil {
 		return nil, err
 	}
-	return model.NewOffsetFromString(res.Id)
+	return stream_model.NewOffsetFromString(res.Id)
 }
 
 func parseFromHttpResp[T any](resp *goHttp.Response, obj T) error {

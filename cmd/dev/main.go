@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/proxima-one/streamdb-client-go/pkg/connection"
-	"github.com/proxima-one/streamdb-client-go/pkg/model"
 	"github.com/proxima-one/streamdb-client-go/pkg/proxima_stream_client"
+	"github.com/proxima-one/streamdb-client-go/pkg/stream_model"
 	"github.com/proxima-one/streamdb-client-go/pkg/stream_registy"
 	"time"
 )
@@ -14,7 +14,7 @@ import (
 var streamRegistryClient *stream_registy.StreamRegistryClient
 
 func getStreamEndpoints() {
-	offset, err := model.NewOffsetFromString("15860589-0xc4db4f4a6c48ffb0d5441cb079cfecf50c528ea3190793be04811c6e2076e27b-1667129423000")
+	offset, err := stream_model.NewOffsetFromString("15860589-0xc4db4f4a6c48ffb0d5441cb079cfecf50c528ea3190793be04811c6e2076e27b-1667129423000")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -86,9 +86,9 @@ func testStreamDbClientFetch() {
 	client := proxima_stream_client.NewProximaStreamClient(proxima_stream_client.Options{Registry: registry})
 	events, err := client.FetchEvents(
 		"proxima.eth-main.blocks.1_0",
-		model.ZeroOffset(),
+		stream_model.ZeroOffset(),
 		10,
-		proxima_stream_client.DirectionNext,
+		stream_model.DirectionNext,
 	)
 	if err != nil {
 		panic(err.Error())
@@ -104,7 +104,7 @@ func testStreamDbClientStream() {
 	stream := client.StreamEvents(
 		ctx,
 		"proxima.eth-main.blocks.1_0",
-		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
+		stream_model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, stream_model.NewTimestamp(1438272137000, nil)),
 		1,
 	)
 	for i := 0; ; i++ {
@@ -121,7 +121,7 @@ func testStreamDbClientStreamWithBufferedReader() {
 	stream := client.StreamEvents(
 		ctx,
 		"proxima.eth-main.blocks.1_0",
-		model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, model.NewTimestamp(1438272137000, nil)),
+		stream_model.NewOffset("0x6df54c6aea7df8327b7dfc74eb8615f3f9b8038b51e435d8e42063382ad555bf", 1000, stream_model.NewTimestamp(1438272137000, nil)),
 		1000,
 	)
 	reader := proxima_stream_client.NewBufferedStreamReader(stream)

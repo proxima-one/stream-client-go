@@ -1,12 +1,12 @@
-package proxima_stream_client
+package internal
 
 import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/proxima-one/streamdb-client-go/pkg/model"
-	"github.com/proxima-one/streamdb-client-go/pkg/utils"
-	streamConsumer "github.com/proxima-one/streamdb-client-go/proto/gen/proto/go/stream_consumer/v1alpha1"
+	streamConsumer "github.com/proxima-one/streamdb-client-go/api/proto/gen/proto/go/stream_consumer/v1alpha1"
+	"github.com/proxima-one/streamdb-client-go/internal"
+	"github.com/proxima-one/streamdb-client-go/pkg/stream_model"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,11 +15,11 @@ import (
 	"time"
 )
 
-type streamDbConsumerClient struct {
+type StreamDbConsumerClient struct {
 	client streamConsumer.StreamConsumerServiceClient
 }
 
-func newStreamDbConsumerClient(uri string) (*streamDbConsumerClient, error) {
+func NewStreamDbConsumerClient(uri string) (*StreamDbConsumerClient, error) {
 	isSecure := strings.Contains(uri, ":443")
 	dialOption := grpc.WithTransportCredentials(insecure.NewCredentials())
 	if isSecure {
@@ -39,43 +39,43 @@ func newStreamDbConsumerClient(uri string) (*streamDbConsumerClient, error) {
 		return nil, err
 	}
 
-	return &streamDbConsumerClient{client: streamConsumer.NewStreamConsumerServiceClient(conn)}, nil
+	return &StreamDbConsumerClient{client: streamConsumer.NewStreamConsumerServiceClient(conn)}, nil
 }
 
-func (c *streamDbConsumerClient) getEvents(
+func (c *StreamDbConsumerClient) GetEvents(
 	stream string,
-	offset *model.Offset,
+	offset *stream_model.Offset,
 	count int,
-	direction Direction) ([]model.StreamEvent, error) {
+	direction stream_model.Direction) ([]stream_model.StreamEvent, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // todo timeout?
 	defer cancel()
 	resp, err := c.client.GetStateTransitions(ctx, &streamConsumer.GetStateTransitionsRequest{
 		StreamId:  stream,
-		Offset:    modelOffsetToProto(offset),
+		Offset:    ModelOffsetToProto(offset),
 		Count:     int32(count),
-		Direction: modelDirectionToProto(direction),
+		Direction: ModelDirectionToProto(direction),
 	})
 	if err != nil {
-		return nil, fmt.Errorf("streamDbConsumerClient.getEvents: %s", err.Error())
+		return nil, fmt.Errorf("StreamDbConsumerClient.getEvents: %s", err.Error())
 	}
-	return utils.MapArray(resp.StateTransitions, protoStateTransitionToStreamEvent), nil
+	return internal.MapArray(resp.StateTransitions, ProtoStateTransitionToStreamEvent), nil
 }
 
-func (c *streamDbConsumerClient) streamEvents(
+func (c *StreamDbConsumerClient) StreamEvents(
 	ctx context.Context,
 	streamId string,
-	offset *model.Offset,
-	eventsStream chan<- model.StreamEvent) (*model.Offset, error) {
+	offset *stream_model.Offset,
+	eventsStream chan<- stream_model.StreamEvent) (*stream_model.Offset, error) {
 
 	stream, err := c.client.StreamStateTransitions(ctx, &streamConsumer.StreamStateTransitionsRequest{
 		StreamId: streamId,
-		Offset:   modelOffsetToProto(offset),
+		Offset:   ModelOffsetToProto(offset),
 	})
 	if err != nil {
 		return offset, err
 	}
-	var lastOffset *model.Offset
+	var lastOffset *stream_model.Offset
 	for ctx.Err() == nil {
 		resp, err := stream.Recv()
 		if err != nil {
@@ -85,7 +85,7 @@ func (c *streamDbConsumerClient) streamEvents(
 			return lastOffset, err
 		}
 		for _, stateTransition := range resp.StateTransition {
-			event := protoStateTransitionToStreamEvent(stateTransition)
+			event := ProtoStateTransitionToStreamEvent(stateTransition)
 			lastOffset = &event.Offset
 			eventsStream <- event
 		}

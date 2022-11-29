@@ -1,4 +1,4 @@
-package model
+package stream_model
 
 type StreamMetadata struct {
 	Description string            `json:"description"`

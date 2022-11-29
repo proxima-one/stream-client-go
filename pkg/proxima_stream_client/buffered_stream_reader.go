@@ -1,21 +1,19 @@
 package proxima_stream_client
 
-import (
-	"github.com/proxima-one/streamdb-client-go/pkg/model"
-)
+import "github.com/proxima-one/streamdb-client-go/pkg/stream_model"
 
 type BufferedStreamReader struct {
-	stream <-chan model.StreamEvent
+	stream <-chan stream_model.StreamEvent
 }
 
-func NewBufferedStreamReader(stream <-chan model.StreamEvent) *BufferedStreamReader {
+func NewBufferedStreamReader(stream <-chan stream_model.StreamEvent) *BufferedStreamReader {
 	return &BufferedStreamReader{
 		stream: stream,
 	}
 }
 
-func (b *BufferedStreamReader) TryRead(maxBatchSize int) []model.StreamEvent {
-	var res []model.StreamEvent
+func (b *BufferedStreamReader) TryRead(maxBatchSize int) []stream_model.StreamEvent {
+	var res []stream_model.StreamEvent
 	event, ok := <-b.stream
 	if !ok {
 		return res
