@@ -1,6 +1,6 @@
 # Golang Proxima.one StreamDB Client
 
-This library is a client for Proxima Stream Registry and Proxima StreamDB.
+This library is a Golang client for Proxima Stream Registry and Proxima StreamDB.
 
 ## Stream Registry Client
 Implements all methods of the Proxima Streams API that is also available at https://streams.api.proxima.one.
