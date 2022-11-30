@@ -57,7 +57,7 @@ func NewStreamRegistryClient(options Options) *StreamRegistryClient {
 }
 
 func (client *StreamRegistryClient) GetStreamEndpoints(stream string, offset *stream_model.Offset) ([]stream_model.StreamEndpoint, error) {
-	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s/offsets/%s/endpoints", stream, offset.ToString()))
+	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s/offsets/%s/endpoints", stream, offset.String()))
 	if err != nil {
 		return nil, err
 	}

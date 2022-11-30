@@ -50,11 +50,11 @@ func NewOffsetFromString(str string) (*Offset, error) {
 	return &offset, err
 }
 
-func (this *Offset) ToString() string {
+func (this *Offset) String() string {
 	if this.Equals(ZeroOffset()) {
 		return "0"
 	}
-	return fmt.Sprintf("%d-%s-%s", this.Height, this.OffsetId, this.Timestamp.ToString())
+	return fmt.Sprintf("%d-%s-%s", this.Height, this.OffsetId, this.Timestamp.String())
 }
 
 func (this *Offset) Equals(offset *Offset) bool {
@@ -77,6 +77,6 @@ func (this *Offset) CanPrecede(offset Offset) bool {
 	return this.Height+1 == offset.Height && this.Timestamp.LessThan(offset.Timestamp)
 }
 
-func (this *Offset) ToDebugString() string {
-	return fmt.Sprintf("%v-%v@(%v)", this.Height, this.OffsetId, this.Timestamp.ToDebugString())
+func (this *Offset) DebugString() string {
+	return fmt.Sprintf("%v-%v@(%v)", this.Height, this.OffsetId, this.Timestamp.DebugString())
 }

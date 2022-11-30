@@ -37,7 +37,7 @@ func (client *ProximaStreamClient) FetchEvents(stream string, offset *stream_mod
 	if err != nil {
 		return nil, err
 	}
-	client.endpointByOffsetCache.Set(stream+events[len(events)-1].Offset.ToString(), endpoint, 0) // with default expiration
+	client.endpointByOffsetCache.Set(stream+events[len(events)-1].Offset.String(), endpoint, 0) // with default expiration
 	return events, nil
 }
 
@@ -53,7 +53,7 @@ func (client *ProximaStreamClient) StreamEvents(
 		for { // infinite retry
 			endpoint, err := client.findEndpoint(streamId, lastOffset)
 			if err != nil {
-				client.endpointByOffsetCache.Delete(streamId + lastOffset.ToString()) // get new endpoint from registry next time
+				client.endpointByOffsetCache.Delete(streamId + lastOffset.String()) // get new endpoint from registry next time
 				continue
 			}
 			streamClient, err := client.getStreamConsumerClient(endpoint.Uri)
@@ -75,7 +75,7 @@ func (client *ProximaStreamClient) StreamEvents(
 }
 
 func (client *ProximaStreamClient) findEndpoint(stream string, offset *stream_model.Offset) (res *stream_model.StreamEndpoint, err error) {
-	if cachedEndpoint, ok := client.endpointByOffsetCache.Get(stream + offset.ToString()); ok {
+	if cachedEndpoint, ok := client.endpointByOffsetCache.Get(stream + offset.String()); ok {
 		return cachedEndpoint.(*stream_model.StreamEndpoint), nil
 	}
 
@@ -84,7 +84,7 @@ func (client *ProximaStreamClient) findEndpoint(stream string, offset *stream_mo
 		return nil, err
 	}
 	if len(endpoints) == 0 {
-		return nil, fmt.Errorf("no endpoints for %s - %s", stream, offset.ToString())
+		return nil, fmt.Errorf("no endpoints for %s - %s", stream, offset.String())
 	}
 	res = &endpoints[0]
 	for _, endpoint := range endpoints {
@@ -96,7 +96,7 @@ func (client *ProximaStreamClient) findEndpoint(stream string, offset *stream_mo
 			res = &endpoint
 		}
 	}
-	client.endpointByOffsetCache.Set(stream+offset.ToString(), res, 0) // with default expiration
+	client.endpointByOffsetCache.Set(stream+offset.String(), res, 0) // with default expiration
 	return
 }
 

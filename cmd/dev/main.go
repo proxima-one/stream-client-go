@@ -109,7 +109,7 @@ func testStreamDbClientStream() {
 	)
 	for i := 0; ; i++ {
 		event := <-stream
-		println(i, event.Offset.ToString(), event.Timestamp.ToTime().String())
+		println(i, event.Offset.String(), event.Timestamp.Time().String())
 		time.Sleep(100 * time.Millisecond)
 	}
 }

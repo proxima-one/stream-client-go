@@ -22,15 +22,15 @@ func NewTimestamp(epochMs int64, parts []string) *Timestamp {
 	return &Timestamp{epochMs, parts}
 }
 
-func (this *Timestamp) ToDebugString() string {
+func (this *Timestamp) DebugString() string {
 	return fmt.Sprintf("%v, %s", this.EpochMs, strings.Join(this.Parts, ","))
 }
 
-func (this *Timestamp) ToTime() time.Time {
+func (this *Timestamp) Time() time.Time {
 	return time.Unix(this.EpochMs/1000, this.EpochMs%1000*1e6)
 }
 
-func (this *Timestamp) ToString() string {
+func (this *Timestamp) String() string {
 	if len(this.Parts) == 0 {
 		return fmt.Sprint(this.EpochMs)
 	}
