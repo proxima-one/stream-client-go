@@ -1,8 +1,8 @@
 package stream_model
 
-type Direction string
+type Direction int
 
 const (
-	DirectionNext Direction = "next"
-	DirectionLast Direction = "last"
+	DirectionNext Direction = iota
+	DirectionLast
 )
