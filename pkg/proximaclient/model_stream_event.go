@@ -1,4 +1,4 @@
-package stream_model
+package proximaclient
 
 type StreamEvent struct {
 	Offset     Offset

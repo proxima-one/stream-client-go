@@ -6,7 +6,7 @@ import (
 	"fmt"
 	streamConsumer "github.com/proxima-one/streamdb-client-go/api/proto/gen/proto/go/stream_consumer/v1alpha1"
 	"github.com/proxima-one/streamdb-client-go/internal"
-	"github.com/proxima-one/streamdb-client-go/pkg/stream_model"
+	"github.com/proxima-one/streamdb-client-go/pkg/proximaclient"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -44,9 +44,9 @@ func NewStreamDbConsumerClient(uri string) (*StreamDbConsumerClient, error) {
 
 func (c *StreamDbConsumerClient) GetEvents(
 	stream string,
-	offset *stream_model.Offset,
+	offset *proximaclient.Offset,
 	count int,
-	direction stream_model.Direction) ([]stream_model.StreamEvent, error) {
+	direction proximaclient.Direction) ([]proximaclient.StreamEvent, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second) // todo timeout?
 	defer cancel()
@@ -65,8 +65,8 @@ func (c *StreamDbConsumerClient) GetEvents(
 func (c *StreamDbConsumerClient) StreamEvents(
 	ctx context.Context,
 	streamId string,
-	offset *stream_model.Offset,
-	eventsStream chan<- stream_model.StreamEvent) (*stream_model.Offset, error) {
+	offset *proximaclient.Offset,
+	eventsStream chan<- proximaclient.StreamEvent) (*proximaclient.Offset, error) {
 
 	stream, err := c.client.StreamStateTransitions(ctx, &streamConsumer.StreamStateTransitionsRequest{
 		StreamId: streamId,
@@ -75,7 +75,7 @@ func (c *StreamDbConsumerClient) StreamEvents(
 	if err != nil {
 		return offset, err
 	}
-	var lastOffset *stream_model.Offset
+	var lastOffset *proximaclient.Offset
 	for ctx.Err() == nil {
 		resp, err := stream.Recv()
 		if err != nil {

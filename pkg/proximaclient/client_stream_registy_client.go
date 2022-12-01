@@ -1,4 +1,4 @@
-package stream_registy
+package proximaclient
 
 import (
 	"encoding/json"
@@ -19,7 +19,7 @@ type StreamRegistryClient struct {
 	options Options
 }
 
-type Options struct {
+type StreamRegistryClientOptions struct {
 	Endpoint        string
 	RetryPolicy     connection.Policy
 	DebugHttpOutput bool
@@ -29,7 +29,7 @@ type StreamFilter struct {
 	Labels map[string]string `json:"labels"`
 }
 
-func NewStreamRegistryClient(options Options) *StreamRegistryClient {
+func NewStreamRegistryClient(options StreamRegistryClientOptions) *StreamRegistryClient {
 	client := http.NewClient()
 	// Exponential backoff https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
 	client.Backoff = func(min, max time.Duration, attemptNum int, resp *goHttp.Response) time.Duration {
@@ -56,36 +56,36 @@ func NewStreamRegistryClient(options Options) *StreamRegistryClient {
 	}
 }
 
-func (client *StreamRegistryClient) GetStreamEndpoints(stream string, offset *stream_model.Offset) ([]stream_model.StreamEndpoint, error) {
+func (client *StreamRegistryClient) GetStreamEndpoints(stream string, offset *Offset) ([]StreamEndpoint, error) {
 	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s/offsets/%s/endpoints", stream, offset.String()))
 	if err != nil {
 		return nil, err
 	}
 	var res struct {
-		Items []stream_model.StreamEndpoint `json:"items"`
+		Items []StreamEndpoint `json:"items"`
 	}
 	err = parseFromHttpResp(resp, &res)
 	return res.Items, err
 }
 
-func (client *StreamRegistryClient) FindStream(stream string) (*stream_model.Stream, error) {
+func (client *StreamRegistryClient) FindStream(stream string) (*Stream, error) {
 	resp, err := client.client.Get(client.options.Endpoint + fmt.Sprintf("/streams/%s", stream))
 	if err != nil {
 		return nil, err
 	}
-	var res stream_model.Stream
+	var res Stream
 	err = parseFromHttpResp(resp, &res)
 	return &res, err
 }
 
-func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) ([]stream_model.Stream, error) {
+func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) ([]Stream, error) {
 	postBody, _ := json.Marshal(filter)
 	resp, err := client.client.Post(client.options.Endpoint+"/streams", "application/json", postBody)
 	if err != nil {
 		return nil, err
 	}
 	var res struct {
-		Items []stream_model.Stream `json:"items"`
+		Items []Stream `json:"items"`
 	}
 	err = parseFromHttpResp(resp, &res)
 	return res.Items, err

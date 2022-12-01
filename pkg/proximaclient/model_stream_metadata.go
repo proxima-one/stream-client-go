@@ -1,4 +1,4 @@
-package stream_model
+package proximaclient
 
 type StreamMetadata struct {
 	Description string            `json:"description"`

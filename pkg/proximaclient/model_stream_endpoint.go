@@ -1,4 +1,4 @@
-package stream_model
+package proximaclient
 
 type StreamEndpoint struct {
 	Uri   string      `json:"uri"`

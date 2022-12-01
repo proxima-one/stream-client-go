@@ -1,4 +1,4 @@
-package stream_model
+package proximaclient
 
 type StreamStats struct {
 	Id          string  `json:"id"`

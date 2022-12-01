@@ -1,30 +1,28 @@
-package proxima_stream_client
+package proximaclient
 
 import (
 	"context"
 	"fmt"
 	"github.com/patrickmn/go-cache"
-	"github.com/proxima-one/streamdb-client-go/pkg/proxima_stream_client/internal"
-	"github.com/proxima-one/streamdb-client-go/pkg/stream_model"
-	"github.com/proxima-one/streamdb-client-go/pkg/stream_registy"
+	"github.com/proxima-one/streamdb-client-go/pkg/proximaclient/internal"
 	"time"
 )
 
-type ProximaStreamClient struct {
-	registry              stream_registy.StreamRegistry
+type StreamClient struct {
+	registry              StreamRegistry
 	clientsByUri          map[string]*internal.StreamDbConsumerClient
 	endpointByOffsetCache *cache.Cache
 }
 
-func NewProximaStreamClient(options Options) *ProximaStreamClient {
-	return &ProximaStreamClient{
+func NewStreamClient(options Options) *StreamClient {
+	return &StreamClient{
 		registry:              options.Registry,
 		clientsByUri:          make(map[string]*internal.StreamDbConsumerClient),
 		endpointByOffsetCache: cache.New(5*time.Minute, 10*time.Minute),
 	}
 }
 
-func (client *ProximaStreamClient) FetchEvents(stream string, offset *stream_model.Offset, count int, direction stream_model.Direction) ([]stream_model.StreamEvent, error) {
+func (client *StreamClient) FetchEvents(stream string, offset *Offset, count int, direction Direction) ([]StreamEvent, error) {
 	endpoint, err := client.findEndpoint(stream, offset)
 	if err != nil {
 		return nil, err
@@ -41,13 +39,13 @@ func (client *ProximaStreamClient) FetchEvents(stream string, offset *stream_mod
 	return events, nil
 }
 
-func (client *ProximaStreamClient) StreamEvents(
+func (client *StreamClient) StreamEvents(
 	ctx context.Context,
 	streamId string,
-	offset *stream_model.Offset,
-	bufferSize int) <-chan stream_model.StreamEvent {
+	offset *Offset,
+	bufferSize int) <-chan StreamEvent {
 
-	stream := make(chan stream_model.StreamEvent, bufferSize)
+	stream := make(chan StreamEvent, bufferSize)
 	lastOffset := offset
 	go func() {
 		for { // infinite retry
@@ -74,9 +72,9 @@ func (client *ProximaStreamClient) StreamEvents(
 	return stream
 }
 
-func (client *ProximaStreamClient) findEndpoint(stream string, offset *stream_model.Offset) (res *stream_model.StreamEndpoint, err error) {
+func (client *StreamClient) findEndpoint(stream string, offset *Offset) (res *StreamEndpoint, err error) {
 	if cachedEndpoint, ok := client.endpointByOffsetCache.Get(stream + offset.String()); ok {
-		return cachedEndpoint.(*stream_model.StreamEndpoint), nil
+		return cachedEndpoint.(*StreamEndpoint), nil
 	}
 
 	endpoints, err := client.registry.GetStreamEndpoints(stream, offset)
@@ -100,7 +98,7 @@ func (client *ProximaStreamClient) findEndpoint(stream string, offset *stream_mo
 	return
 }
 
-func (client *ProximaStreamClient) getStreamConsumerClient(uri string) (*internal.StreamDbConsumerClient, error) {
+func (client *StreamClient) getStreamConsumerClient(uri string) (*internal.StreamDbConsumerClient, error) {
 	if client, ok := client.clientsByUri[uri]; ok {
 		return client, nil
 	}

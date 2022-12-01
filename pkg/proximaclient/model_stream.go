@@ -1,4 +1,4 @@
-package stream_model
+package proximaclient
 
 type Stream struct {
 	Name      string                    `json:"name"`
