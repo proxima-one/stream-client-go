@@ -19,12 +19,12 @@ func NewOffset(id string, height int64, timestamp *Timestamp) *Offset {
 	return &Offset{id, height, *timestamp}
 }
 
-func (this *Offset) UnmarshalJSON(data []byte) error {
-	offset, err := NewOffsetFromString(strings.Trim(string(data), "\""))
+func (offset *Offset) UnmarshalJSON(data []byte) error {
+	parsedOffset, err := NewOffsetFromString(strings.Trim(string(data), "\""))
 	if err != nil {
 		return err
 	}
-	*this = *offset
+	*offset = *parsedOffset
 	return nil
 }
 
@@ -50,33 +50,33 @@ func NewOffsetFromString(str string) (*Offset, error) {
 	return &offset, err
 }
 
-func (this *Offset) String() string {
-	if this.Equals(ZeroOffset()) {
+func (offset *Offset) String() string {
+	if offset.Equals(ZeroOffset()) {
 		return "0"
 	}
-	return fmt.Sprintf("%d-%s-%s", this.Height, this.OffsetId, this.Timestamp.String())
+	return fmt.Sprintf("%d-%s-%s", offset.Height, offset.OffsetId, offset.Timestamp.String())
 }
 
-func (this *Offset) Equals(offset *Offset) bool {
-	return this.OffsetId == offset.OffsetId
+func (offset *Offset) Equals(another *Offset) bool {
+	return offset.OffsetId == another.OffsetId
 }
 
 func ZeroOffset() *Offset {
 	return NewOffset("", 0, ZeroTimestamp())
 }
 
-func (this *Offset) CanSucceed(offset Offset) bool {
-	return this.Height-1 == offset.Height && this.Timestamp.GreaterThan(offset.Timestamp)
+func (offset *Offset) CanSucceed(another Offset) bool {
+	return offset.Height-1 == another.Height && offset.Timestamp.GreaterThan(another.Timestamp)
 }
 
-func (this *Offset) CanPrecede(offset Offset) bool {
-	if this.Equals(ZeroOffset()) {
+func (offset *Offset) CanPrecede(another Offset) bool {
+	if offset.Equals(ZeroOffset()) {
 		return true
 	}
 
-	return this.Height+1 == offset.Height && this.Timestamp.LessThan(offset.Timestamp)
+	return offset.Height+1 == another.Height && offset.Timestamp.LessThan(another.Timestamp)
 }
 
-func (this *Offset) DebugString() string {
-	return fmt.Sprintf("%v-%v@(%v)", this.Height, this.OffsetId, this.Timestamp.DebugString())
+func (offset *Offset) DebugString() string {
+	return fmt.Sprintf("%v-%v@(%v)", offset.Height, offset.OffsetId, offset.Timestamp.DebugString())
 }

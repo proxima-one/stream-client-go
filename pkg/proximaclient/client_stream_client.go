@@ -4,20 +4,19 @@ import (
 	"context"
 	"fmt"
 	"github.com/patrickmn/go-cache"
-	"github.com/proxima-one/streamdb-client-go/pkg/proximaclient/internal"
 	"time"
 )
 
 type StreamClient struct {
 	registry              StreamRegistry
-	clientsByUri          map[string]*internal.StreamDbConsumerClient
+	clientsByUri          map[string]*streamDbConsumerClient
 	endpointByOffsetCache *cache.Cache
 }
 
 func NewStreamClient(options Options) *StreamClient {
 	return &StreamClient{
 		registry:              options.Registry,
-		clientsByUri:          make(map[string]*internal.StreamDbConsumerClient),
+		clientsByUri:          make(map[string]*streamDbConsumerClient),
 		endpointByOffsetCache: cache.New(5*time.Minute, 10*time.Minute),
 	}
 }
@@ -98,11 +97,11 @@ func (client *StreamClient) findEndpoint(stream string, offset *Offset) (res *St
 	return
 }
 
-func (client *StreamClient) getStreamConsumerClient(uri string) (*internal.StreamDbConsumerClient, error) {
+func (client *StreamClient) getStreamConsumerClient(uri string) (*streamDbConsumerClient, error) {
 	if client, ok := client.clientsByUri[uri]; ok {
 		return client, nil
 	}
-	res, err := internal.NewStreamDbConsumerClient(uri)
+	res, err := newStreamDbConsumerClient(uri)
 	if err != nil {
 		return nil, err
 	}

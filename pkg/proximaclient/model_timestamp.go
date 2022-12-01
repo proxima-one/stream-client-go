@@ -22,23 +22,23 @@ func NewTimestamp(epochMs int64, parts []string) *Timestamp {
 	return &Timestamp{epochMs, parts}
 }
 
-func (this *Timestamp) DebugString() string {
-	return fmt.Sprintf("%v, %s", this.EpochMs, strings.Join(this.Parts, ","))
+func (timestamp *Timestamp) DebugString() string {
+	return fmt.Sprintf("%v, %s", timestamp.EpochMs, strings.Join(timestamp.Parts, ","))
 }
 
-func (this *Timestamp) Time() time.Time {
-	return time.Unix(this.EpochMs/1000, this.EpochMs%1000*1e6)
+func (timestamp *Timestamp) Time() time.Time {
+	return time.Unix(timestamp.EpochMs/1000, timestamp.EpochMs%1000*1e6)
 }
 
-func (this *Timestamp) String() string {
-	if len(this.Parts) == 0 {
-		return fmt.Sprint(this.EpochMs)
+func (timestamp *Timestamp) String() string {
+	if len(timestamp.Parts) == 0 {
+		return fmt.Sprint(timestamp.EpochMs)
 	}
 
-	partsStr := strings.Join(this.Parts, ",")
+	partsStr := strings.Join(timestamp.Parts, ",")
 	partsBase64 := base64.StdEncoding.EncodeToString([]byte(partsStr))
 
-	return fmt.Sprintf("%d~%s", this.EpochMs, partsBase64)
+	return fmt.Sprintf("%d~%s", timestamp.EpochMs, partsBase64)
 }
 
 func NewTimestampFromString(s string) (*Timestamp, error) {
@@ -63,51 +63,48 @@ func NewTimestampFromString(s string) (*Timestamp, error) {
 	return NewTimestamp(epochMs, parts), nil
 }
 
-func (this *Timestamp) Compare(timestamp Timestamp) int {
-	if this.EpochMs < timestamp.EpochMs {
+func (timestamp *Timestamp) Compare(another Timestamp) int {
+	switch {
+	case timestamp.EpochMs < another.EpochMs:
 		return -1
-	}
-
-	if this.EpochMs > timestamp.EpochMs {
+	case timestamp.EpochMs > another.EpochMs:
 		return 1
 	}
 
-	minLength := internal.Min(len(this.Parts), len(timestamp.Parts))
-
+	minLength := internal.Min(len(timestamp.Parts), len(another.Parts))
 	for i := 0; i < minLength; i++ {
-		a, aerr := strconv.Atoi(this.Parts[i])
-		b, berr := strconv.Atoi(timestamp.Parts[i])
-
-		if aerr == nil && berr == nil {
-			if a > b {
-				return 1
+		if a, err := strconv.Atoi(timestamp.Parts[i]); err == nil {
+			if b, err := strconv.Atoi(another.Parts[i]); err == nil {
+				switch {
+				case a > b:
+					return 1
+				case a < b:
+					return -1
+				}
+				continue
 			}
-			if a < b {
-				return -1
-			}
-			continue
 		}
 
-		if this.Parts[i] > timestamp.Parts[i] {
+		switch {
+		case timestamp.Parts[i] > another.Parts[i]:
 			return 1
-		}
-		if this.Parts[i] < timestamp.Parts[i] {
+		case timestamp.Parts[i] < another.Parts[i]:
 			return -1
 		}
 	}
 
 	// shorter length means less
-	return len(this.Parts) - len(timestamp.Parts)
+	return len(timestamp.Parts) - len(another.Parts)
 }
 
-func (this *Timestamp) Equals(timestamp Timestamp) bool {
-	return this.Compare(timestamp) == 0
+func (timestamp *Timestamp) Equals(another Timestamp) bool {
+	return timestamp.Compare(another) == 0
 }
 
-func (this *Timestamp) GreaterThan(timestamp Timestamp) bool {
-	return this.Compare(timestamp) > 0
+func (timestamp *Timestamp) GreaterThan(another Timestamp) bool {
+	return timestamp.Compare(another) > 0
 }
 
-func (this *Timestamp) LessThan(timestamp Timestamp) bool {
-	return this.Compare(timestamp) < 0
+func (timestamp *Timestamp) LessThan(another Timestamp) bool {
+	return timestamp.Compare(another) < 0
 }

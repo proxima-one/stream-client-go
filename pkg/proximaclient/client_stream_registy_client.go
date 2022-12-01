@@ -5,7 +5,6 @@ import (
 	"fmt"
 	http "github.com/hashicorp/go-retryablehttp"
 	"github.com/proxima-one/streamdb-client-go/pkg/connection"
-	"github.com/proxima-one/streamdb-client-go/pkg/stream_model"
 	"io"
 	"math"
 	"math/rand"
@@ -16,7 +15,7 @@ import (
 
 type StreamRegistryClient struct {
 	client  *http.Client
-	options Options
+	options StreamRegistryClientOptions
 }
 
 type StreamRegistryClientOptions struct {
@@ -91,19 +90,19 @@ func (client *StreamRegistryClient) FindStreams(filter *StreamFilter) ([]Stream,
 	return res.Items, err
 }
 
-func (client *StreamRegistryClient) GetStreams() ([]stream_model.Stream, error) {
+func (client *StreamRegistryClient) GetStreams() ([]Stream, error) {
 	resp, err := client.client.Get(client.options.Endpoint + "/streams")
 	if err != nil {
 		return nil, err
 	}
 	var res struct {
-		Items []stream_model.Stream `json:"items"`
+		Items []Stream `json:"items"`
 	}
 	err = parseFromHttpResp(resp, &res)
 	return res.Items, err
 }
 
-func (client *StreamRegistryClient) FindOffset(stream string, height *int64, timestamp *time.Time) (*stream_model.Offset, error) {
+func (client *StreamRegistryClient) FindOffset(stream string, height *int64, timestamp *time.Time) (*Offset, error) {
 	if height == nil && timestamp == nil {
 		return nil, fmt.Errorf("you should provide either height or timestamp")
 	}
@@ -127,7 +126,7 @@ func (client *StreamRegistryClient) FindOffset(stream string, height *int64, tim
 	if err != nil {
 		return nil, err
 	}
-	return stream_model.NewOffsetFromString(res.Id)
+	return NewOffsetFromString(res.Id)
 }
 
 func parseFromHttpResp[T any](resp *goHttp.Response, obj T) error {
