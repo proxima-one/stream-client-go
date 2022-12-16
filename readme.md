@@ -18,14 +18,14 @@ streamRegistryClient := proximaclient.NewStreamRegistryClient(proximaclient.Stre
 ```go
 client := proximaclient.NewProximaStreamClient(proximaclient.Options{Registry: registry})
 ```
-You can use either `streamRegistryClient` from previous example or create `SingleStreamDbRegistry` as a `registry`:
+You can use either `streamRegistryClient` from previous example as a `registry` or create `SingleStreamDbRegistry`:
 ```go
 singleRegistryClient := proximaclient.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
 ```
 SingleRegistryClient is a simple implementation of the `StreamRegistry` interface that always returns the same stream db address.
 It can be useful for development purposes but in production you should use `StreamRegistryClient` that will fetch the StreamDB address from the registry.
 
-As you have created the client you can use it to consume a stream. There are some different methods to do so:
+As you have a client you can use it to consume a stream. There are some different methods to do so:
 
 ### Streaming events
 The second method is more suitable for long-running processes that need to consume a stream in a loop.
@@ -61,10 +61,10 @@ for i := 0; ; i++ {
 ```
 It's single `TryRead` method will read at least one event but no more than the specified number of events and return them as a slice.
 
-<b>If there are no events in the stream it will wait until there is at least one available.</b> If stream has more than one event, it will never wait for more events.
+<b>If there are no events in the stream it will wait until there is at least one available.</b> If a stream has more than one event, it will never wait for more events.
 
 ### Fetching a number of events
-It is useful when you want to fetch a number of events from the stream, but you shouldn't use it for long-running processes.
+It is useful when you want to fetch a number of events from the stream, but <b>you shouldn't use it for long-running processes</b>.
 ```go
 events, err := proximaclient.FetchEvents(
     "proxima.eth-main.blocks.1_0",       // the name of the stream
