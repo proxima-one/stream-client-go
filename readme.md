@@ -30,7 +30,7 @@ As you have created the client you can use it to consume a stream. There are som
 ### Streaming events
 The second method is more suitable for long-running processes that need to consume a stream in a loop.
 ```go
-stream := client.StreamEvents(
+stream := proximaclient.StreamEvents(
     ctx,                           // stream context. When it is cancelled the stream will be closed
     "proxima.eth-main.blocks.1_0", // the name of the stream
     proximaclient.ZeroOffset(),
@@ -66,7 +66,7 @@ It's single `TryRead` method will read at least one event but no more than the s
 ### Fetching a number of events
 It is useful when you want to fetch a number of events from the stream, but you shouldn't use it for long-running processes.
 ```go
-events, err := client.FetchEvents(
+events, err := proximaclient.FetchEvents(
     "proxima.eth-main.blocks.1_0",       // the name of the stream
     proximaclient.ZeroOffset(),
     10,                                  // the MAX number of events to fetch
