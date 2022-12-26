@@ -1,77 +1,79 @@
-# Golang client for proxima streams:
+# Golang Proxima.one StreamDB Client
 
-### 1) Proxima streams client (ProximaClient)
+This library is a Golang client for Proxima Stream Registry and Proxima StreamDB.
 
-- Provides basic access to grpc endpoint (no additional logic for handling errors and retries or state management)
-- GetTransitionsAfter(...) returns requested amount transitions after given state
-- GetStreams(...) return channel for transitions and channel for errors based on GRPC stream
-- GetStreamBasedOnRpc(...) same as GetStreams(...) but based on RPC calls instead of GRPC stream
+## Stream Registry Client
+Wraps all methods of the Proxima Streams API that is also available at https://streams.api.proxima.one.
 
 ```go
-	//setup connection
-	cfg := config.NewConfigFromFileOverwriteOptions(
-		"config.yaml",
-		config.WithChannelSize(10000),
-		config.WithState(model.Genesis()),
-	)
-    client := NewProximaClient(cfg)
-    if /*request-response model*/() {
-             stream, errc, err = reader.client.GetStreamBasedOnRpc(ctx, model.StreamState{
-             StreamID: reader.config.GetStreamID(),
-             State:    reader.lastState,
-            })
-        }
-	if /*streaming model*/() {
-             stream, errc, err = reader.client.GetStream(ctx, model.StreamState{
-             StreamID: reader.config.GetStreamID(),
-             State:    reader.lastState,
-	    })
-        }
-		
-    //read stream
-	for {
-        select {
-        case <-ctx.Done():
-            return
-        case err := <-errc:
-            if err != nil {
-                return
-            }
-        case transition, ok := <-stream:
-            //process transition
-        }
-    }
+streamRegistryClient := proximaclient.NewStreamRegistryClient(proximaclient.StreamRegistryClientOptions{
+    Endpoint:        "https://streams.api.proxima.one",
+    RetryPolicy:     connection.DefaultPolicy(),
+    DebugHttpOutput: false,
+})
 ```
 
-### 2) Proxima streams reader (StreamReader)
+## Proxima Stream Client
 
-- Provide easy access to streams based on ProximaClient
-- Handle state management (state is stored in memory)
-- can easily apply async function to every transition for example: Json Parsing for payload
-- trying to restore connection in case of not getting messages from stream for some time period
 ```go
+client := proximaclient.NewProximaStreamClient(proximaclient.Options{Registry: registry})
+```
+You can use either `streamRegistryClient` from previous example as a `registry` or create `SingleStreamDbRegistry`:
+```go
+singleRegistryClient := proximaclient.NewSingleStreamDbRegistry("streams.buh.apps.proxima.one:443")
+```
+SingleRegistryClient is a simple implementation of the `StreamRegistry` interface that always returns the same stream db address.
+It can be useful for development purposes but in production you should use `StreamRegistryClient` that will fetch the StreamDB address from the registry.
 
-//StreamConnectionOption struct {
-//Type            string //type of connection (grpc, rpc) StreamConnectionOptionTypeRpc, StreamConnectionOptionTypeStream
-//ReconnectTime   time.Duration // restart connection every ReconnectTime
-//WatchDogTimeout time.Duration // restart connection if WatchDogTimeout is exceeded
-//}
+As you have a client you can use it to consume a stream. There are some different methods to do so:
 
-reader := client.NewStreamReader(cfg, client.JsonParsingPreprocessFunc)
-//you can write your own map function instead JsonParsingPreprocessFunc  fn(transition *model.Transition) -> (any, error)
-startParams := client.NewDefaultStreamConnectionOption()
-startErr := reader.Start(context.Background(), startParams)
-
-
-for {
-    data, err := reader.ReadNext()
-	// check error 
-	// if error is not nil then processing stream is stopped 
-	// you need to call Start again if error is not critical
-	// continueErr := reader.Start(context.Background(), startParams)
-	mapValue, err := data.Preprocess.PreprocessingResult()
-	//get access to required data from stream item
-	//process data
-	//...
+### Streaming events
+The second method is more suitable for long-running processes that need to consume a stream in a loop.
+```go
+stream := proximaclient.StreamEvents(
+    ctx,                           // stream context. When it is cancelled the stream will be closed
+    "proxima.eth-main.blocks.1_0", // the name of the stream
+    proximaclient.ZeroOffset(),
+    1000,                          // stream buffer size. Consider increasing it if you have unstable network connection
+)
+```
+Now `stream` is a Go channel with `StreamEvent` structs. You can use it in a loop:
+```go
+for ctx.Err() == nil {
+    select {
+    case event := <-stream:
+        // process event
+    case <-ctx.Done():
+        return
+    }
 }
 ```
+Note that the `StreamEvents` will never throw any error. If there is a problem with the connection it will try to reconnect and continue streaming.
+
+### BufferedStreamReader
+In some cases you may want to read events in batches in a long-running process. In this case you can use `BufferedStreamReader`:
+```go
+reader := proximaclient.NewBufferedStreamReader(stream)
+for i := 0; ; i++ {
+    events := reader.TryRead(50)
+    // process event
+}
+```
+It's single `TryRead` method will read at least one event but no more than the specified number of events and return them as a slice.
+
+<b>If there are no events in the stream it will wait until there is at least one available.</b> If a stream has more than one event, it will never wait for more events.
+
+### Fetching a number of events
+It is useful when you want to fetch a number of events from the stream, but <b>you shouldn't use it for long-running processes</b>.
+```go
+events, err := proximaclient.FetchEvents(
+    "proxima.eth-main.blocks.1_0",       // the name of the stream
+    proximaclient.ZeroOffset(),
+    10,                                  // the MAX number of events to fetch
+    proximaclient.DirectionNext, // direction can be either Next or Last which means forward or backward
+)
+```
+You can now process `events` just like any other slice of `StreamEvent` structs.
+
+Note that the `FetchEvents` method can return a non-nil error.
+

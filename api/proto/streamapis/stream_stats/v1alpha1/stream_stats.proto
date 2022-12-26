@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package stream_stats.v1alpha1;
+
+import "model/v1/model.proto";
+
+message GetStreamStatsRequest {
+    string stream_id = 1;
+}
+
+message GetStreamStatsResponse {
+    StreamStats stats = 1;
+}
+
+message GetStreamsStatsResponse {
+    repeated StreamStats stats = 1;
+}
+
+message GetStreamsStatsRequest {
+    repeated string streamIds = 1;
+    optional bool all = 2;
+}
+
+message StreamStats {
+    string id = 1;
+    model.v1.Offset start = 2;
+    model.v1.Offset end = 3;
+    int64 total_storage_size = 4;
+    int64 message_count = 5;
+}
+
+service StreamStatsService {
+  rpc GetStreamStats(GetStreamStatsRequest) returns (GetStreamStatsResponse) {}
+  rpc GetStreamsStats(GetStreamsStatsRequest) returns (GetStreamsStatsResponse) {}
+}

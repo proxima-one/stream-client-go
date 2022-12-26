@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package stream_producer.v1alpha1;
+
+import "model/v1/model.proto";
+
+message ProducerState {
+  repeated model.v1.StreamStateRef input_streams = 1;
+  repeated model.v1.StreamStateRef output_streams = 2;
+}
+
+message Producer {
+  ProducerState state = 1;
+  string update_token = 2;
+}
+
+message StreamEvents {
+  string stream_id = 1;
+  repeated model.v1.Event events = 2;
+}
+
+message CreateProducerRequest {
+  string id = 1;
+  repeated string output_streams = 2;
+  bool  force = 3;
+  optional bytes user_data = 4;
+}
+
+
+message CreateProducerResponse {
+  Producer producer = 1;
+}
+
+message GetProducerRequest {
+  string id = 1;
+}
+
+message GetProducerResponse {
+  Producer producer = 1;
+}
+
+message ProduceEventsRequest {
+  string update_token = 1;
+  ProducerState producer_state = 2;
+  repeated StreamEvents stream_events = 3;
+}
+
+message ProduceEventsResponse {
+  string update_token = 1;
+}
+
+service StreamProducerService {
+  rpc CreateProducer(CreateProducerRequest) returns (CreateProducerResponse) {}
+  rpc GetProducer(GetProducerRequest) returns (GetProducerResponse) {}
+  rpc ProduceEvents(ProduceEventsRequest) returns (ProduceEventsResponse) {}
+}
