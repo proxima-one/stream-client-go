@@ -74,20 +74,20 @@ func (c *streamDbConsumerClient) StreamEvents(
 	if err != nil {
 		return offset, err
 	}
-	var lastOffset *Offset
+	lastOffset := *offset
 	for ctx.Err() == nil {
 		resp, err := stream.Recv()
 		if err != nil {
 			if ctx.Err() != nil { // ignore context cancel error as we're in an infinite loop
-				return lastOffset, nil
+				return &lastOffset, nil
 			}
-			return lastOffset, err
+			return &lastOffset, err
 		}
 		for _, stateTransition := range resp.StateTransition {
 			event := protoStateTransitionToStreamEvent(stateTransition)
-			lastOffset = &event.Offset
+			lastOffset = event.Offset
 			eventsStream <- event
 		}
 	}
-	return lastOffset, nil
+	return &lastOffset, nil
 }
