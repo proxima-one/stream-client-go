@@ -16,7 +16,7 @@ streamRegistryClient := proximaclient.NewStreamRegistryClient(proximaclient.Stre
 ## Proxima Stream Client
 
 ```go
-client := proximaclient.NewProximaStreamClient(proximaclient.Options{Registry: registry})
+client := proximaclient.NewStreamClient(proximaclient.Options{Registry: registry})
 ```
 You can use either `streamRegistryClient` from previous example as a `registry` or create `SingleStreamDbRegistry`:
 ```go
