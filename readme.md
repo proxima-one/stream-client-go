@@ -30,7 +30,7 @@ As you have a client you can use it to consume a stream. There are some differen
 ### Streaming events
 The second method is more suitable for long-running processes that need to consume a stream in a loop.
 ```go
-stream := proximaclient.StreamEvents(
+stream := client.StreamEvents(
     ctx,                           // stream context. When it is cancelled the stream will be closed
     "proxima.eth-main.blocks.1_0", // the name of the stream
     proximaclient.ZeroOffset(),
