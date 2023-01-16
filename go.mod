@@ -1,4 +1,4 @@
-module github.com/proxima-one/streamdb-client-go
+module github.com/proxima-one/streamdb-client-go/v2
 
 go 1.18
 

@@ -1,8 +1,8 @@
 package proximaclient
 
 import (
-	pbModel "github.com/proxima-one/streamdb-client-go/api/proto/gen/proto/go/model/v1"
-	pbConsumerModel "github.com/proxima-one/streamdb-client-go/api/proto/gen/proto/go/stream_consumer/v1alpha1"
+	pbModel "github.com/proxima-one/streamdb-client-go/v2/api/proto/gen/proto/go/model/v1"
+	pbConsumerModel "github.com/proxima-one/streamdb-client-go/v2/api/proto/gen/proto/go/stream_consumer/v1alpha1"
 )
 
 func protoStateTransitionToStreamEvent(transition *pbModel.StateTransition) StreamEvent {

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	http "github.com/hashicorp/go-retryablehttp"
-	"github.com/proxima-one/streamdb-client-go/pkg/connection"
+	"github.com/proxima-one/streamdb-client-go/v2/pkg/connection"
 	"io"
 	"math"
 	"math/rand"
