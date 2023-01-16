@@ -3,7 +3,7 @@ package proximaclient
 import (
 	"encoding/base64"
 	"fmt"
-	"github.com/proxima-one/streamdb-client-go/internal"
+	"github.com/proxima-one/streamdb-client-go/v2/internal"
 	"strconv"
 	"strings"
 	"time"

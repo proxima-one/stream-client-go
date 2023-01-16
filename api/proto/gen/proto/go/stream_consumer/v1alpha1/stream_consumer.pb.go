@@ -7,7 +7,7 @@
 package stream_consumerv1alpha1
 
 import (
-	v1 "github.com/proxima-one/streamdb-client-go/api/proto/gen/proto/go/model/v1"
+	v1 "github.com/proxima-one/streamdb-client-go/v2/api/proto/gen/proto/go/model/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
