@@ -6,6 +6,7 @@ import (
 	"github.com/davecgh/go-spew/spew"
 	"github.com/proxima-one/streamdb-client-go/v2/pkg/connection"
 	"github.com/proxima-one/streamdb-client-go/v2/pkg/proximaclient"
+	"strconv"
 	"time"
 )
 
@@ -60,12 +61,6 @@ func findOffset() {
 }
 
 func testStreamRegistryClient() {
-	streamRegistryClient = proximaclient.NewStreamRegistryClient(proximaclient.StreamRegistryClientOptions{
-		Endpoint:        "https://streams.api.proxima.one",
-		RetryPolicy:     connection.DefaultPolicy(),
-		DebugHttpOutput: false,
-	})
-
 	println("\n==================================== getStreamEndpoints() ====================================\n")
 	getStreamEndpoints()
 	println("\n==================================== findStream() ====================================\n")
@@ -130,8 +125,24 @@ func testStreamDbClientStreamWithBufferedReader() {
 }
 
 func main() {
+	streamRegistryClient = proximaclient.NewStreamRegistryClient(proximaclient.StreamRegistryClientOptions{
+		Endpoint:        "https://streams.api.proxima.one",
+		RetryPolicy:     connection.DefaultPolicy(),
+		DebugHttpOutput: false,
+	})
+
 	// testStreamRegistryClient()
 	// testStreamDbClientFetch()
 	// testStreamDbClientStream()
-	testStreamDbClientStreamWithBufferedReader()
+	// testStreamDbClientStreamWithBufferedReader()
+
+	t := time.Unix(time.Now().Unix()+10000, 0)
+	_, err := streamRegistryClient.FindOffset("proxima.eth-main.blocks.1_0", nil, &t)
+	if err != nil && err == proximaclient.OffsetNotFoundError() {
+		println("right")
+	}
+	_, err = strconv.ParseBool("gg")
+	if err != nil && err != proximaclient.OffsetNotFoundError() {
+		println("right")
+	}
 }

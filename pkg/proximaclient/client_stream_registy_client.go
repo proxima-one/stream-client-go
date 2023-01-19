@@ -126,6 +126,9 @@ func (client *StreamRegistryClient) FindOffset(stream string, height *int64, tim
 	if err != nil {
 		return nil, err
 	}
+	if res.Id == "" {
+		return nil, OffsetNotFoundError()
+	}
 	return NewOffsetFromString(res.Id)
 }
 
