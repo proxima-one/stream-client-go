@@ -25,7 +25,7 @@ type StreamRegistryClientOptions struct {
 }
 
 type StreamFilter struct {
-	Labels map[string]string `json:"labels"`
+	Labels map[string]any `json:"labels"`
 }
 
 func NewStreamRegistryClient(options StreamRegistryClientOptions) *StreamRegistryClient {

@@ -41,7 +41,7 @@ func getStreams() {
 }
 
 func findStreams() {
-	streams, err := streamRegistryClient.FindStreams(&proximaclient.StreamFilter{Labels: map[string]string{
+	streams, err := streamRegistryClient.FindStreams(&proximaclient.StreamFilter{Labels: map[string]any{
 		"encoding": "json",
 	}})
 	if err != nil {
@@ -131,10 +131,10 @@ func main() {
 		DebugHttpOutput: false,
 	})
 
-	// testStreamRegistryClient()
-	// testStreamDbClientFetch()
-	// testStreamDbClientStream()
-	// testStreamDbClientStreamWithBufferedReader()
+	//testStreamRegistryClient()
+	//testStreamDbClientFetch()
+	//testStreamDbClientStream()
+	//testStreamDbClientStreamWithBufferedReader()
 
 	t := time.Unix(time.Now().Unix()+10000, 0)
 	_, err := streamRegistryClient.FindOffset("proxima.eth-main.blocks.1_0", nil, &t)
