@@ -65,6 +65,10 @@ func ZeroOffset() *Offset {
 	return NewOffset("", 0, ZeroTimestamp())
 }
 
+func (offset *Offset) CanBeAfter(another Offset) bool {
+	return offset.Height > another.Height && offset.Timestamp.GreaterThan(another.Timestamp)
+}
+
 func (offset *Offset) CanSucceed(another Offset) bool {
 	return offset.Height-1 == another.Height && offset.Timestamp.GreaterThan(another.Timestamp)
 }
