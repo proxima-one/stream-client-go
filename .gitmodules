@@ -1,0 +1,3 @@
+[submodule "api/proto/proto"]
+	path = api/proto/proto
+	url = git@github.com:proxima-one/proto.git
