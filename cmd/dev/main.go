@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/proxima-one/streamdb-client-go/v2/pkg/connection"
-	"github.com/proxima-one/streamdb-client-go/v2/pkg/proximaclient"
+	"github.com/proxima-one/stream-client-go/v2/pkg/connection"
+	"github.com/proxima-one/stream-client-go/v2/pkg/proximaclient"
 	"strconv"
 	"time"
 )
